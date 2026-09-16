@@ -14,11 +14,106 @@
             <div id="message-band" aria-live="polite"></div>
 
             <main id="timer-zone">
-                <div id="timer-display">00:00</div>
+                <div
+                    id="timer-display"
+                    tabindex="0"
+                    role="button"
+                    aria-label="Edit duration"
+                >
+                    00:00
+                </div>
+
+                <div id="duration-editor" hidden>
+                    <label>
+                        Min
+                        <input
+                            type="number"
+                            id="duration-minutes"
+                            min="0"
+                            max="180"
+                            value="20"
+                            inputmode="numeric"
+                        />
+                    </label>
+                    <label>
+                        Sec
+                        <input
+                            type="number"
+                            id="duration-seconds"
+                            min="0"
+                            max="59"
+                            value="0"
+                            inputmode="numeric"
+                        />
+                    </label>
+                    <button type="button" id="duration-apply">Set</button>
+                    <button type="button" id="duration-cancel">Cancel</button>
+                    <div id="duration-presets">
+                        <button
+                            type="button"
+                            class="preset-btn"
+                            data-minutes="5"
+                        >
+                            5m
+                        </button>
+                        <button
+                            type="button"
+                            class="preset-btn"
+                            data-minutes="10"
+                        >
+                            10m
+                        </button>
+                        <button
+                            type="button"
+                            class="preset-btn"
+                            data-minutes="15"
+                        >
+                            15m
+                        </button>
+                        <button
+                            type="button"
+                            class="preset-btn"
+                            data-minutes="20"
+                        >
+                            20m
+                        </button>
+                        <button
+                            type="button"
+                            class="preset-btn"
+                            data-minutes="30"
+                        >
+                            30m
+                        </button>
+                        <button
+                            type="button"
+                            class="preset-btn"
+                            data-minutes="45"
+                        >
+                            45m
+                        </button>
+                    </div>
+                </div>
             </main>
 
             <footer id="controls-bar">
-                <div id="controls-placeholder">controls go here</div>
+                <div id="quick-adjust" hidden>
+                    <button type="button" class="adjust-btn" data-delta="-60">
+                        −1:00
+                    </button>
+                    <button type="button" class="adjust-btn" data-delta="-30">
+                        −0:30
+                    </button>
+                    <button type="button" class="adjust-btn" data-delta="30">
+                        +0:30
+                    </button>
+                    <button type="button" class="adjust-btn" data-delta="60">
+                        +1:00
+                    </button>
+                </div>
+                <div id="primary-controls">
+                    <button type="button" id="btn-toggle">Start</button>
+                    <button type="button" id="btn-reset">Reset</button>
+                </div>
             </footer>
         </div>
         <script type="module" src="js/main.js"></script>

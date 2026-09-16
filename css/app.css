@@ -59,9 +59,11 @@ body {
 /* Timer zone: centered, fills remaining space */
 #timer-zone {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     min-height: 0;
+    gap: 1rem;
 }
 
 #timer-display {
@@ -71,16 +73,90 @@ body {
     line-height: 1;
     user-select: none;
     -webkit-user-select: none;
+    cursor: pointer;
+}
+
+#duration-editor {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    font-size: 1.25rem;
+}
+
+#duration-editor label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+#duration-editor input[type="number"] {
+    width: 4rem;
+    font-size: 1.5rem;
+    text-align: center;
+    min-height: 64px;
+}
+
+#duration-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+    width: 100%;
 }
 
 /* Controls bar: dims/hides after idle (behavior added in later task) */
 #controls-bar {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 0.75rem;
     transition: opacity 300ms ease;
 }
 
 #controls-bar.idle {
     opacity: 0.15;
+}
+
+#primary-controls,
+#quick-adjust,
+#duration-presets {
+    display: flex;
+    gap: 0.75rem;
+}
+
+button {
+    min-width: 64px;
+    min-height: 64px;
+    font-size: 1.25rem;
+    border-radius: 12px;
+    border: none;
+    background: #2a2f36;
+    color: var(--fg);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+}
+
+button:active {
+    background: #3a4048;
+}
+
+#btn-toggle {
+    background: #2f7d3c;
+    min-width: 120px;
+}
+
+#btn-toggle.is-running {
+    background: #7d2f2f;
+}
+
+#btn-reset {
+    background: #4a4f57;
+}
+
+[hidden] {
+    display: none !important;
 }
