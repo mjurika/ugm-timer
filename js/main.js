@@ -513,6 +513,15 @@ const peerSession = createPeerSession({
       settings,
     });
   },
+  onConnectedAsAdmin: (conn) => {
+    // Share our locally-persisted settings too, in case we edited them while
+    // offline; version check on both ends decides who wins.
+    conn.send({
+      type: "settings",
+      settingsVersion: settings.settingsVersion,
+      settings,
+    });
+  },
 });
 
 const code = peerSession.startAsPresenter();

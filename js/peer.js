@@ -38,6 +38,7 @@ export function createPeerSession({
   onData,
   onPeerCount,
   onPeerConnected,
+  onConnectedAsAdmin,
 } = {}) {
   let peer = null;
   let role = "presenter"; // 'presenter' | 'admin'
@@ -132,6 +133,7 @@ export function createPeerSession({
         connections = [conn];
         setStatus("linked");
         notifyPeerCount();
+        onConnectedAsAdmin?.(conn);
       });
       conn.on("data", (data) => onData?.(data, conn));
       conn.on("close", () => {
