@@ -1,16 +1,16 @@
 // Settings persistence + threshold color logic.
 // No DOM access except localStorage.
 
-const STORAGE_KEY = 'ugm-timer:settings:v1';
+const STORAGE_KEY = "ugm-timer:settings:v1";
 
 export const DEFAULT_SETTINGS = {
   thresholds: [
-    { minutes: 15, color: '#f5c518', enabled: true },
-    { minutes: 5, color: '#f28c28', enabled: true },
-    { minutes: 2, color: '#d02b2b', enabled: true },
+    { minutes: 15, color: "#f5c518", enabled: true },
+    { minutes: 5, color: "#f28c28", enabled: true },
+    { minutes: 2, color: "#d02b2b", enabled: true },
   ],
-  baseColor: '#101418',
-  defaultDurationMs: 20 * 60 * 1000,
+  baseColor: "#101418",
+  defaultDurationMs: 30 * 60 * 1000,
   messageFontSize: 5, // vh
   flashOnZero: true,
   keepAwake: true,
@@ -29,7 +29,7 @@ export function loadSettings() {
     // Merge with defaults so new fields introduced later don't break old saves.
     return { ...cloneDefaults(), ...parsed };
   } catch (err) {
-    console.warn('Failed to load settings, using defaults.', err);
+    console.warn("Failed to load settings, using defaults.", err);
     return cloneDefaults();
   }
 }
@@ -38,35 +38,34 @@ export function saveSettings(settings) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch (err) {
-    console.warn('Failed to save settings.', err);
+    console.warn("Failed to save settings.", err);
   }
 }
 
 export function validateThreshold(minutes, color, existing = []) {
   const errors = [];
-  if (!(minutes >= 0 && minutes <= 180)) {
-    errors.push('Minutes must be between 0 and 180.');
-  }
   if (existing.some((t) => t.minutes === minutes)) {
-    errors.push('Duplicate threshold minutes.');
+    errors.push("Duplicate threshold minutes.");
   }
   if (!/^#[0-9a-fA-F]{6}$/.test(color)) {
-    errors.push('Color must be a hex value.');
+    errors.push("Color must be a hex value.");
   }
   return errors;
 }
 
 // Relative luminance (WCAG) to decide black or white foreground text.
 export function readableForeground(hexColor) {
-  const hex = hexColor.replace('#', '');
+  const hex = hexColor.replace("#", "");
   const r = parseInt(hex.substring(0, 2), 16) / 255;
   const g = parseInt(hex.substring(2, 4), 16) / 255;
   const b = parseInt(hex.substring(4, 6), 16) / 255;
 
-  const linear = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
-  const luminance = 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+  const linear = (c) =>
+    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  const luminance =
+    0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
 
-  return luminance > 0.5 ? '#000000' : '#ffffff';
+  return luminance > 0.5 ? "#000000" : "#ffffff";
 }
 
 // Pick the color for the given remaining time.

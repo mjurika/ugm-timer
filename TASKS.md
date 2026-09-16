@@ -6,14 +6,14 @@ Chronological task list. Each task is shippable/verifiable on its own.
 
 ## Key decisions
 
-| Topic | Choice | Why |
-| --- | --- | --- |
-| Structure | Single `index.html` + native ES modules, no build step | GitHub Pages serves static files; native `import` works everywhere we target |
-| P2P | PeerJS via CDN (pinned, ~12 KB gz) | WebRTC requires a signaling broker. Only realistic zero-backend option. Custom short peer IDs double as the join code |
-| Timer | Timestamp-based (`endsAt`) + `requestAnimationFrame` render | `setInterval` drifts and is throttled in background tabs |
-| Topology | Presenter = host and single source of truth. Admin(s) connect with a code | App must work standalone without an admin |
-| Persistence | `localStorage` for settings only (never timer runtime state) | Requirement |
-| Settings | Shared across the pair, presenter-authoritative, last-write-wins by `settingsVersion` | Both sides must see identical thresholds/colors |
+| Topic       | Choice                                                                                | Why                                                                                                                   |
+| ----------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Structure   | Single `index.html` + native ES modules, no build step                                | GitHub Pages serves static files; native `import` works everywhere we target                                          |
+| P2P         | PeerJS via CDN (pinned, ~12 KB gz)                                                    | WebRTC requires a signaling broker. Only realistic zero-backend option. Custom short peer IDs double as the join code |
+| Timer       | Timestamp-based (`endsAt`) + `requestAnimationFrame` render                           | `setInterval` drifts and is throttled in background tabs                                                              |
+| Topology    | Presenter = host and single source of truth. Admin(s) connect with a code             | App must work standalone without an admin                                                                             |
+| Persistence | `localStorage` for settings only (never timer runtime state)                          | Requirement                                                                                                           |
+| Settings    | Shared across the pair, presenter-authoritative, last-write-wins by `settingsVersion` | Both sides must see identical thresholds/colors                                                                       |
 
 ### Default settings
 
@@ -25,7 +25,7 @@ Chronological task list. Each task is shippable/verifiable on its own.
     { minutes: 2,  color: '#d02b2b', enabled: true }   // red
   ],
   baseColor: '#101418',
-  defaultDurationMs: 20 * 60 * 1000,
+  defaultDurationMs: 30 * 60 * 1000,
   messageFontSize: 5,        // vh
   flashOnZero: true,
   keepAwake: true
@@ -73,8 +73,13 @@ Three vertical zones, CSS grid:
 Pure module, no DOM access.
 
 ```js
-{ status: 'idle' | 'running' | 'paused' | 'finished',
-  durationMs, remainingMs, endsAt, version }
+{
+  status: ("idle" | "running" | "paused" | "finished",
+    durationMs,
+    remainingMs,
+    endsAt,
+    version);
+}
 ```
 
 API: `setDuration(ms)`, `start()`, `pause()`, `resume()`, `reset()`, `adjust(deltaMs)`, `getRemaining()`, `subscribe(cb)`
@@ -101,7 +106,7 @@ API: `setDuration(ms)`, `start()`, `pause()`, `resume()`, `reset()`, `adjust(del
 
 ## T4 — Quick adjust buttons
 
-Four buttons, shown only while `running` or `paused`: `−1:00`  `−0:30`  `+0:30`  `+1:00`
+Four buttons, shown only while `running` or `paused`: `−1:00` `−0:30` `+0:30` `+1:00`
 
 - Shifts `endsAt` while running; shifts `remainingMs` while paused.
 - Floors at 0. Brief flash of the new value as feedback.

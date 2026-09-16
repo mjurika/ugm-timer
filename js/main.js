@@ -541,12 +541,12 @@ function sendCommand(action, payload) {
 }
 
 const peerSession = createPeerSession({
-  onStatusChange: (status, count, role) => {
+  onStatusChange: (status) => {
     let label = status;
     if (status === "linked") {
-      label = role === "admin" ? "linked • admin" : `linked • ${count} admin`;
+      label = "linked";
     } else if (status === "ready") {
-      label = "presenter • ready";
+      label = "ready";
     }
     pairingStatus.textContent = label;
     pairingStatus.className = status;
