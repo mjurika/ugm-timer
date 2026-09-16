@@ -256,6 +256,10 @@ button:active {
     color: #6fd67a;
 }
 
+#pairing-status.ready {
+    color: #8fb8ff;
+}
+
 #pairing-status.connecting {
     color: #f5c518;
 }
@@ -386,9 +390,46 @@ button:active {
 
 #message-input {
     width: 100%;
-    font-size: 1.1rem;
-    padding: 0.5rem;
-    resize: vertical;
+    min-height: 3em;
+    padding: 0.5rem 0.75rem;
+    border: 2px solid #3a4048;
+    border-radius: 10px;
+    background: #12161a;
+    color: var(--fg);
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+    overflow-wrap: anywhere;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#message-input:focus {
+    outline: none;
+    border-color: #6fd67a;
+}
+
+#message-input:empty::before {
+    content: attr(data-placeholder);
+    opacity: 0.45;
+    font-weight: 400;
+}
+
+#message-font-value {
+    min-width: 2.5rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+#pairing-settings-info {
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+    opacity: 0.85;
+}
+
+#btn-disconnect {
+    background: #7d2f2f;
+    width: 100%;
 }
 
 #message-font-controls {

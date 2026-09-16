@@ -50,7 +50,7 @@
                     <button type="button" id="btn-reset">Reset</button>
                     <button type="button" id="btn-fullscreen">⛶</button>
                 </div>
-                <div id="quick-adjust" hidden>
+                <div id="quick-adjust"></div>
                     <button type="button" class="adjust-btn" data-delta="-60">
                         −1:00
                     </button>
@@ -173,6 +173,14 @@
                         <!-- rows injected by main.js -->
                     </fieldset>
 
+                    <fieldset id="pairing-settings">
+                        <legend>Pairing</legend>
+                        <div id="pairing-settings-info"></div>
+                        <button type="button" id="btn-disconnect">
+                            Disconnect / reset pairing
+                        </button>
+                    </fieldset>
+
                     <div id="settings-actions">
                         <button type="button" id="btn-install" hidden>
                             Install app
@@ -216,22 +224,25 @@
             <dialog id="message-dialog">
                 <form method="dialog" id="message-form">
                     <h2>Send message</h2>
-                    <textarea
+                    <div
                         id="message-input"
-                        rows="2"
-                        maxlength="120"
-                        placeholder="Up to ~10 words"
-                    ></textarea>
+                        contenteditable="true"
+                        role="textbox"
+                        aria-multiline="true"
+                        aria-label="Message text"
+                        data-placeholder="Up to ~10 words"
+                    ></div>
                     <div id="message-font-controls">
                         <span>Size</span>
                         <button type="button" id="message-font-minus">
                             A−
                         </button>
+                        <span id="message-font-value">5</span>
                         <button type="button" id="message-font-plus">A+</button>
                     </div>
 
                     <div id="message-preview-label">
-                        Live preview (shown in the band above):
+                        Text above is shown at the real size used on screen.
                     </div>
 
                     <div id="message-actions">

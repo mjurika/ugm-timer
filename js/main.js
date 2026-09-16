@@ -1,4 +1,4 @@
-import { createPeerSession } from "./peer.js";
+import { createPeerSession, normalizeCode } from "./peer.js";
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -46,9 +46,12 @@ const messageForm = document.getElementById("message-form");
 const messageInput = document.getElementById("message-input");
 const messageFontMinus = document.getElementById("message-font-minus");
 const messageFontPlus = document.getElementById("message-font-plus");
+const messageFontValue = document.getElementById("message-font-value");
 const messageDismissBtn = document.getElementById("message-dismiss-btn");
 const messageCloseBtn = document.getElementById("message-close");
 const btnInstall = document.getElementById("btn-install");
+const btnDisconnect = document.getElementById("btn-disconnect");
+const pairingSettingsInfo = document.getElementById("pairing-settings-info");
 
 let settings = loadSettings();
 
@@ -73,10 +76,6 @@ function render() {
       ? "Resume"
       : "Start";
   btnToggle.classList.toggle("is-running", isRunning);
-
-  quickAdjust.hidden = !(
-    state.status === "running" || state.status === "paused"
-  );
 
   requestAnimationFrame(render);
 }
@@ -311,8 +310,20 @@ settingsForm.addEventListener("submit", (e) => {
 });
 
 // --- Keyboard shortcuts (desktop convenience) ---
+function isTextEntryTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target.isContentEditable
+  );
+}
+
 window.addEventListener("keydown", (e) => {
-  if (e.target instanceof HTMLInputElement) return;
+  // Never steal keys from text entry or while a modal dialog is open.
+  if (isTextEntryTarget(e.target)) return;
+  if (document.querySelector("dialog[open]")) return;
+
   if (e.code === "Space") {
     e.preventDefault();
     btnToggle.click();
@@ -415,6 +426,12 @@ function handlePeerData(data) {
       }
       break;
     }
+    case "bye": {
+      // The other side ended the pairing: drop back to standalone presenter.
+      clearMessage();
+      startPresenterMode();
+      break;
+    }
     default:
       break;
   }
@@ -473,10 +490,24 @@ function sendCommand(action, payload) {
 }
 
 const peerSession = createPeerSession({
-  onStatusChange: (status, count) => {
-    pairingStatus.textContent =
-      status === "linked" ? `linked (${count})` : status;
+  onStatusChange: (status, count, role) => {
+    let label = status;
+    if (status === "linked") {
+      label = role === "admin" ? "linked • admin" : `linked • ${count} admin`;
+    } else if (status === "ready") {
+      label = "presenter • ready";
+    }
+    pairingStatus.textContent = label;
     pairingStatus.className = status;
+    updateRoleUi();
+  },
+  onError: (err, asRole) => {
+    if (err.type === "peer-unavailable") {
+      connectError.textContent =
+        "No presenter found with that code. Check it and try again — we'll keep retrying.";
+    } else if (asRole === "admin") {
+      connectError.textContent = `Connection problem: ${err.type || err.message}`;
+    }
   },
   onData: handlePeerData,
   onPeerCount: () => {},
@@ -498,6 +529,8 @@ const peerSession = createPeerSession({
     });
   },
   onConnectedAsAdmin: (conn) => {
+    connectError.textContent = "";
+    if (connectDialog.open) connectDialog.close();
     // Share our locally-persisted settings too, in case we edited them while
     // offline; version check on both ends decides who wins.
     conn.send({
@@ -508,10 +541,17 @@ const peerSession = createPeerSession({
   },
 });
 
-const code = peerSession.startAsPresenter();
-pairingCode.textContent = code;
-pairingCode.hidden = false;
-btnCopyCode.hidden = false;
+function startPresenterMode() {
+  const code = peerSession.startAsPresenter();
+  pairingCode.textContent = code;
+  pairingCode.hidden = false;
+  btnCopyCode.hidden = false;
+  btnConnectAdmin.hidden = false;
+  updateRoleUi();
+  return code;
+}
+
+startPresenterMode();
 
 btnCopyCode.addEventListener("click", async () => {
   const text = pairingCode.textContent;
@@ -548,20 +588,32 @@ btnConnectAdmin.addEventListener("click", () => {
   connectDialog.showModal();
 });
 
-connectCancel.addEventListener("click", () => connectDialog.close());
+connectCancel.addEventListener("click", () => {
+  connectDialog.close();
+  // If we already flipped into admin mode but never linked, go back to being
+  // a standalone presenter rather than retrying forever in the background.
+  if (
+    peerSession.getRole() === "admin" &&
+    peerSession.getStatus() !== "linked"
+  ) {
+    startPresenterMode();
+  }
+});
 
 connectForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const raw = connectCode.value.trim().toLowerCase();
+  const raw = normalizeCode(connectCode.value);
   if (!raw) {
     connectError.textContent = "Enter a code.";
     return;
   }
+  connectError.textContent = "Connecting…";
   peerSession.connectAsAdmin(raw);
   btnConnectAdmin.hidden = true;
   pairingCode.hidden = true;
   btnCopyCode.hidden = true;
-  connectDialog.close();
+  // Dialog stays open until the link succeeds (see onConnectedAsAdmin), so the
+  // user can see errors and correct the code.
 });
 
 // Temporary dev hooks for debugging in the console.
@@ -607,40 +659,88 @@ function dismissMessage() {
 
 btnDismissMessage.addEventListener("click", dismissMessage);
 
-// Only admins get the compose button.
+// Role-dependent UI: only admins compose messages.
 function updateRoleUi() {
   const isAdmin = peerSession.getRole() === "admin";
   btnComposeMessage.hidden = !isAdmin;
+  if (pairingSettingsInfo) {
+    pairingSettingsInfo.textContent = isAdmin
+      ? `Connected as admin to ${peerSession.getCode() || "presenter"}.`
+      : `You are the presenter. Your code is ${peerSession.getCode() || "…"}.`;
+  }
 }
 
-const roleCheckInterval = setInterval(updateRoleUi, 500);
 updateRoleUi();
 
+btnDisconnect.addEventListener("click", () => {
+  clearMessage();
+  // Tell the other side to reset too, then go back to standalone presenter.
+  // Small delay so the "bye" is flushed before we tear the connection down.
+  peerSession.broadcast({ type: "bye" });
+  settingsDialog.close();
+  setTimeout(() => startPresenterMode(), 200);
+});
+
 btnComposeMessage.addEventListener("click", () => {
-  messageInput.value = "";
-  applyMessagePreviewFontSize();
+  messageInput.textContent = "";
+  applyComposeFontSize();
   messageDialog.showModal();
+  messageInput.focus();
 });
 
 messageCloseBtn.addEventListener("click", () => messageDialog.close());
 
-function applyMessagePreviewFontSize() {
-  messageText.style.fontSize = `${settings.messageFontSize}vh`;
+const MESSAGE_MAX_CHARS = 120;
+
+// Keep the editable box plain text and bounded.
+messageInput.addEventListener("paste", (e) => {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData("text");
+  document.execCommand("insertText", false, text);
+});
+
+messageInput.addEventListener("input", () => {
+  const text = messageInput.textContent;
+  if (text.length > MESSAGE_MAX_CHARS) {
+    messageInput.textContent = text.slice(0, MESSAGE_MAX_CHARS);
+    // Put the caret back at the end after truncating.
+    const range = document.createRange();
+    range.selectNodeContents(messageInput);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+});
+
+messageInput.addEventListener("keydown", (e) => {
+  // Enter sends; Shift+Enter makes a line break.
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    messageForm.requestSubmit();
+  }
+});
+
+// The compose box renders at the exact size used on the presenter screen, so
+// the admin can see straight away whether the text is too long or too large.
+function applyComposeFontSize() {
+  messageInput.style.fontSize = `${settings.messageFontSize}vh`;
+  messageFontValue.textContent = String(settings.messageFontSize);
 }
 
 messageFontMinus.addEventListener("click", () => {
   settings.messageFontSize = Math.max(2, settings.messageFontSize - 0.5);
-  applyMessagePreviewFontSize();
+  applyComposeFontSize();
 });
 
 messageFontPlus.addEventListener("click", () => {
   settings.messageFontSize = Math.min(10, settings.messageFontSize + 0.5);
-  applyMessagePreviewFontSize();
+  applyComposeFontSize();
 });
 
 messageForm.addEventListener("submit", (e) => {
   e.preventDefault();
-  const text = messageInput.value.trim();
+  const text = messageInput.textContent.trim();
   if (!text) return;
   sendMessage(text, settings.messageFontSize);
   bumpSettingsVersion();

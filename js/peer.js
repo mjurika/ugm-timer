@@ -6,8 +6,16 @@
 // envelopes back and forth. See main.js for how envelopes are interpreted.
 
 const CODE_STORAGE_KEY = "ugm-timer:presenter-code:v1";
-const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // no 0/O/1/I
+// Lowercase only: peer ids are case-sensitive, so we normalise everywhere to
+// avoid "peer-unavailable" when someone types/pastes the code in a different case.
+const CODE_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"; // no 0/o/1/l/i
 const CODE_PREFIX = "ugm-";
+
+export function normalizeCode(code) {
+  return String(code || "")
+    .trim()
+    .toLowerCase();
+}
 
 function randomCode(length = 6) {
   let out = "";
@@ -20,7 +28,7 @@ function randomCode(length = 6) {
 function loadOrCreatePresenterCode() {
   try {
     const existing = localStorage.getItem(CODE_STORAGE_KEY);
-    if (existing) return existing;
+    if (existing) return normalizeCode(existing);
   } catch (err) {
     console.warn("Could not read stored presenter code.", err);
   }
@@ -39,21 +47,29 @@ export function createPeerSession({
   onPeerCount,
   onPeerConnected,
   onConnectedAsAdmin,
+  onError,
 } = {}) {
   let peer = null;
   let role = "presenter"; // 'presenter' | 'admin'
   let connections = []; // presenter: list of admin DataConnections. admin: single-element list.
-  let status = "offline"; // 'offline' | 'connecting' | 'linked'
+  let status = "offline"; // 'offline' | 'connecting' | 'ready' | 'linked'
   let reconnectAttempts = 0;
   let reconnectTimer = null;
+  let presenterCode = null; // our own code when acting as presenter
+  let targetCode = null; // the presenter we're attached to when acting as admin
 
   function setStatus(next) {
     status = next;
-    onStatusChange?.(status, connections.length);
+    onStatusChange?.(status, connections.length, role);
   }
 
   function notifyPeerCount() {
     onPeerCount?.(connections.length);
+  }
+
+  function idleStatus() {
+    // Presenter with no admins attached is still fully operational.
+    return role === "presenter" ? "ready" : "connecting";
   }
 
   function wireConnection(conn) {
@@ -67,9 +83,7 @@ export function createPeerSession({
     conn.on("close", () => {
       connections = connections.filter((c) => c !== conn);
       notifyPeerCount();
-      if (connections.length === 0 && role === "presenter") {
-        setStatus("linked"); // presenter stays "up" waiting for admins even with none connected
-      }
+      if (connections.length === 0) setStatus(idleStatus());
     });
     conn.on("error", (err) => {
       console.warn("Peer connection error:", err);
@@ -83,18 +97,40 @@ export function createPeerSession({
     reconnectTimer = setTimeout(startFn, delay);
   }
 
+  function teardownPeer() {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+    for (const conn of connections) {
+      try {
+        conn.close();
+      } catch (err) {
+        console.warn("Error closing connection:", err);
+      }
+    }
+    connections = [];
+    notifyPeerCount();
+    try {
+      peer?.destroy();
+    } catch (err) {
+      console.warn("Error destroying peer:", err);
+    }
+    peer = null;
+  }
+
   function startAsPresenter() {
+    teardownPeer();
     role = "presenter";
-    const code = loadOrCreatePresenterCode();
+    targetCode = null;
+    presenterCode = loadOrCreatePresenterCode();
     setStatus("connecting");
 
     function attempt(idSuffix = "") {
-      const id = code + idSuffix;
+      const id = presenterCode + idSuffix;
       peer = new Peer(id);
 
       peer.on("open", () => {
         reconnectAttempts = 0;
-        setStatus(connections.length ? "linked" : "linked");
+        setStatus(connections.length ? "linked" : "ready");
       });
 
       peer.on("connection", (conn) => wireConnection(conn));
@@ -107,9 +143,10 @@ export function createPeerSession({
       peer.on("error", (err) => {
         console.warn("Presenter peer error:", err);
         if (err.type === "unavailable-id") {
-          // Extremely rare id collision; retry with a random suffix.
+          // Id already taken (e.g. another tab on this machine); retry with a suffix.
           attempt("-" + Math.floor(Math.random() * 1000));
         } else {
+          onError?.(err, "presenter");
           setStatus("connecting");
           scheduleReconnect(() => attempt(idSuffix));
         }
@@ -117,17 +154,20 @@ export function createPeerSession({
     }
 
     attempt();
-    return code;
+    return presenterCode;
   }
 
-  function connectAsAdmin(presenterCode) {
-    peer?.destroy();
+  function connectAsAdmin(code) {
+    const normalized = normalizeCode(code);
+    teardownPeer();
     role = "admin";
+    targetCode = normalized;
     setStatus("connecting");
     peer = new Peer();
 
     peer.on("open", () => {
-      const conn = peer.connect(presenterCode.trim());
+      const conn = peer.connect(normalized, { reliable: true });
+
       conn.on("open", () => {
         reconnectAttempts = 0;
         connections = [conn];
@@ -138,19 +178,25 @@ export function createPeerSession({
       conn.on("data", (data) => onData?.(data, conn));
       conn.on("close", () => {
         connections = [];
-        setStatus("connecting");
         notifyPeerCount();
-        scheduleReconnect(() => connectAsAdmin(presenterCode));
+        if (role !== "admin") return; // we deliberately left admin mode
+        setStatus("connecting");
+        scheduleReconnect(() => connectAsAdmin(normalized));
       });
       conn.on("error", (err) => {
         console.warn("Admin connection error:", err);
+        onError?.(err, "admin");
       });
     });
 
     peer.on("error", (err) => {
       console.warn("Admin peer error:", err);
+      onError?.(err, "admin");
+      if (role !== "admin") return;
       setStatus("connecting");
-      scheduleReconnect(() => connectAsAdmin(presenterCode));
+      // "peer-unavailable" means the code is wrong or the presenter is offline.
+      // Keep retrying (with backoff) so it links up as soon as it appears.
+      scheduleReconnect(() => connectAsAdmin(normalized));
     });
   }
 
@@ -172,9 +218,13 @@ export function createPeerSession({
     return connections.length;
   }
 
+  function getCode() {
+    return role === "presenter" ? presenterCode : targetCode;
+  }
+
   function destroy() {
-    clearTimeout(reconnectTimer);
-    peer?.destroy();
+    teardownPeer();
+    setStatus("offline");
   }
 
   return {
@@ -184,6 +234,7 @@ export function createPeerSession({
     getRole,
     getStatus,
     getPeerCount,
+    getCode,
     destroy,
   };
 }
