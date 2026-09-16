@@ -176,3 +176,57 @@ button:active {
 #timer-display.flash {
     animation: flash 250ms ease;
 }
+
+#btn-settings {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 10;
+    min-width: 48px;
+    min-height: 48px;
+    font-size: 1.5rem;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 50%;
+}
+
+#settings-dialog {
+    border: none;
+    border-radius: 16px;
+    padding: 1.5rem;
+    background: #1c2126;
+    color: var(--fg);
+    max-width: 90vw;
+    width: 420px;
+}
+
+#settings-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+#settings-form fieldset {
+    border: 1px solid #333;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.threshold-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.threshold-row input[type="number"] {
+    width: 4rem;
+}
+
+.threshold-error {
+    color: #ff8080;
+    font-size: 0.85rem;
+}
+
+#settings-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}

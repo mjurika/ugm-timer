@@ -11,6 +11,10 @@
     </head>
     <body>
         <div id="app">
+            <button type="button" id="btn-settings" aria-label="Settings">
+                ⚙
+            </button>
+
             <div id="message-band" aria-live="polite"></div>
 
             <main id="timer-zone">
@@ -115,6 +119,36 @@
                     <button type="button" id="btn-reset">Reset</button>
                 </div>
             </footer>
+
+            <dialog id="settings-dialog">
+                <form method="dialog" id="settings-form">
+                    <h2>Settings</h2>
+
+                    <fieldset>
+                        <legend>Base background color</legend>
+                        <input
+                            type="color"
+                            id="setting-base-color"
+                            value="#101418"
+                        />
+                    </fieldset>
+
+                    <fieldset id="threshold-rows">
+                        <legend>Color thresholds (up to 3)</legend>
+                        <!-- rows injected by main.js -->
+                    </fieldset>
+
+                    <div id="settings-actions">
+                        <button type="button" id="settings-reset-defaults">
+                            Reset to defaults
+                        </button>
+                        <button type="submit" id="settings-save">Save</button>
+                        <button type="button" id="settings-close">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </dialog>
         </div>
         <script type="module" src="js/main.js"></script>
     </body>

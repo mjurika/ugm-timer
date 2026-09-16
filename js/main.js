@@ -1,3 +1,10 @@
+import {
+  DEFAULT_SETTINGS,
+  loadSettings,
+  pickColor,
+  saveSettings,
+  validateThreshold,
+} from "./settings.js";
 import { createTimer, formatDuration } from "./timer.js";
 
 const timerDisplay = document.getElementById("timer-display");
@@ -10,14 +17,31 @@ const durationPresets = document.getElementById("duration-presets");
 const btnToggle = document.getElementById("btn-toggle");
 const btnReset = document.getElementById("btn-reset");
 const quickAdjust = document.getElementById("quick-adjust");
+const btnSettings = document.getElementById("btn-settings");
+const settingsDialog = document.getElementById("settings-dialog");
+const settingsForm = document.getElementById("settings-form");
+const settingsBaseColor = document.getElementById("setting-base-color");
+const thresholdRows = document.getElementById("threshold-rows");
+const settingsResetDefaults = document.getElementById(
+  "settings-reset-defaults",
+);
+const settingsClose = document.getElementById("settings-close");
 
-const DEFAULT_DURATION_MS = 20 * 60 * 1000; // replaced by settings in T5
-const timer = createTimer(DEFAULT_DURATION_MS);
+let settings = loadSettings();
+
+const timer = createTimer(settings.defaultDurationMs);
+
+function applyBackground(remainingMs) {
+  const { bg, fg } = pickColor(settings, remainingMs);
+  document.documentElement.style.setProperty("--bg", bg);
+  document.documentElement.style.setProperty("--fg", fg);
+}
 
 function render() {
   const state = timer.getState();
   const remaining = timer.getRemaining();
   timerDisplay.textContent = formatDuration(remaining);
+  applyBackground(remaining);
 
   const isRunning = state.status === "running";
   btnToggle.textContent = isRunning
@@ -137,6 +161,106 @@ quickAdjust.addEventListener("click", (e) => {
   flashDisplay();
 });
 
+// --- Settings dialog ---
+function renderThresholdRows() {
+  thresholdRows
+    .querySelectorAll(".threshold-row, .threshold-error, #th-add")
+    .forEach((el) => el.remove());
+
+  settings.thresholds.forEach((t, index) => {
+    const row = document.createElement("div");
+    row.className = "threshold-row";
+    row.innerHTML =
+      '<label><input type="checkbox" class="th-enabled" ' +
+      (t.enabled ? "checked" : "") +
+      " /></label>" +
+      '<label>Min <input type="number" class="th-minutes" min="0" max="180" value="' +
+      t.minutes +
+      '" /></label>' +
+      '<input type="color" class="th-color" value="' +
+      t.color +
+      '" />' +
+      '<button type="button" class="th-remove">Remove</button>';
+    row.dataset.index = String(index);
+    thresholdRows.appendChild(row);
+  });
+
+  if (settings.thresholds.length < 3) {
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.id = "th-add";
+    addBtn.textContent = "Add threshold";
+    addBtn.addEventListener("click", () => {
+      if (settings.thresholds.length >= 3) return;
+      settings.thresholds.push({
+        minutes: 10,
+        color: "#f5c518",
+        enabled: true,
+      });
+      renderThresholdRows();
+    });
+    thresholdRows.appendChild(addBtn);
+  }
+}
+
+function openSettings() {
+  settingsBaseColor.value = settings.baseColor;
+  renderThresholdRows();
+  settingsDialog.showModal();
+}
+
+btnSettings.addEventListener("click", openSettings);
+settingsClose.addEventListener("click", () => settingsDialog.close());
+
+thresholdRows.addEventListener("click", (e) => {
+  const removeBtn = e.target.closest(".th-remove");
+  if (!removeBtn) return;
+  const row = removeBtn.closest(".threshold-row");
+  const index = Number(row.dataset.index);
+  settings.thresholds.splice(index, 1);
+  renderThresholdRows();
+});
+
+settingsResetDefaults.addEventListener("click", () => {
+  settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  settingsBaseColor.value = settings.baseColor;
+  renderThresholdRows();
+});
+
+settingsForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+
+  const rows = Array.from(thresholdRows.querySelectorAll(".threshold-row"));
+  const nextThresholds = [];
+  const errors = [];
+
+  rows.forEach((row) => {
+    const minutes = Number(row.querySelector(".th-minutes").value);
+    const color = row.querySelector(".th-color").value;
+    const enabled = row.querySelector(".th-enabled").checked;
+    const rowErrors = validateThreshold(minutes, color, nextThresholds);
+    if (rowErrors.length) {
+      errors.push(...rowErrors);
+    } else {
+      nextThresholds.push({ minutes, color, enabled });
+    }
+  });
+
+  if (errors.length) {
+    alert(errors.join("\n"));
+    return;
+  }
+
+  settings = {
+    ...settings,
+    thresholds: nextThresholds,
+    baseColor: settingsBaseColor.value,
+    settingsVersion: (settings.settingsVersion || 0) + 1,
+  };
+  saveSettings(settings);
+  settingsDialog.close();
+});
+
 // --- Keyboard shortcuts (desktop convenience) ---
 window.addEventListener("keydown", (e) => {
   if (e.target instanceof HTMLInputElement) return;
@@ -150,3 +274,4 @@ window.addEventListener("keydown", (e) => {
 
 // Temporary dev hook until peer sync lands in T7/T8.
 window.__timer = timer;
+window.__settings = () => settings;
