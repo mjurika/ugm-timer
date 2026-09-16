@@ -9,6 +9,7 @@ const durationCancel = document.getElementById("duration-cancel");
 const durationPresets = document.getElementById("duration-presets");
 const btnToggle = document.getElementById("btn-toggle");
 const btnReset = document.getElementById("btn-reset");
+const quickAdjust = document.getElementById("quick-adjust");
 
 const DEFAULT_DURATION_MS = 20 * 60 * 1000; // replaced by settings in T5
 const timer = createTimer(DEFAULT_DURATION_MS);
@@ -25,6 +26,10 @@ function render() {
       ? "Resume"
       : "Start";
   btnToggle.classList.toggle("is-running", isRunning);
+
+  quickAdjust.hidden = !(
+    state.status === "running" || state.status === "paused"
+  );
 
   requestAnimationFrame(render);
 }
@@ -115,6 +120,21 @@ durationPresets.addEventListener("click", (e) => {
   const minutes = Number(btn.dataset.minutes);
   durationMinutes.value = String(minutes);
   durationSeconds.value = "0";
+});
+
+// --- Quick adjust (±30s / ±1m) ---
+function flashDisplay() {
+  timerDisplay.classList.remove("flash");
+  void timerDisplay.offsetWidth; // force reflow so animation retriggers on rapid taps
+  timerDisplay.classList.add("flash");
+}
+
+quickAdjust.addEventListener("click", (e) => {
+  const btn = e.target.closest(".adjust-btn");
+  if (!btn) return;
+  const deltaSeconds = Number(btn.dataset.delta);
+  timer.adjust(deltaSeconds * 1000);
+  flashDisplay();
 });
 
 // --- Keyboard shortcuts (desktop convenience) ---
