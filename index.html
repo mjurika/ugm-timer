@@ -8,12 +8,26 @@
         />
         <title>UGM Timer</title>
         <link rel="stylesheet" href="css/app.css" />
+        <script
+            src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"
+            integrity="sha384-nlUQ8ZqCbvStErob+biJNzSgltf6urV3VGqhfIfzhmg9RXmpeRm76ELw0pYnKlTR"
+            crossorigin="anonymous"
+            defer
+        ></script>
     </head>
     <body>
         <div id="app">
             <button type="button" id="btn-settings" aria-label="Settings">
                 ⚙
             </button>
+
+            <div id="pairing-bar">
+                <span id="pairing-status">offline</span>
+                <span id="pairing-code" hidden></span>
+                <button type="button" id="btn-connect-admin">
+                    Connect as admin
+                </button>
+            </div>
 
             <div id="message-band" aria-live="polite"></div>
 
@@ -148,6 +162,31 @@
                             Cancel
                         </button>
                     </div>
+                </form>
+            </dialog>
+
+            <dialog id="connect-dialog">
+                <form method="dialog" id="connect-form">
+                    <h2>Connect as admin</h2>
+                    <label>
+                        Presenter code
+                        <input
+                            type="text"
+                            id="connect-code"
+                            placeholder="ugm-xxxxxx"
+                            autocapitalize="none"
+                            autocomplete="off"
+                        />
+                    </label>
+                    <div id="connect-actions">
+                        <button type="submit" id="connect-submit">
+                            Connect
+                        </button>
+                        <button type="button" id="connect-cancel">
+                            Cancel
+                        </button>
+                    </div>
+                    <p id="connect-error" role="alert"></p>
                 </form>
             </dialog>
         </div>

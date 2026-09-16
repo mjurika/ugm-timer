@@ -1,3 +1,4 @@
+import { createPeerSession } from "./peer.js";
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -28,6 +29,14 @@ const settingsResetDefaults = document.getElementById(
 const settingsClose = document.getElementById("settings-close");
 const btnFullscreen = document.getElementById("btn-fullscreen");
 const controlsBar = document.getElementById("controls-bar");
+const pairingStatus = document.getElementById("pairing-status");
+const pairingCode = document.getElementById("pairing-code");
+const btnConnectAdmin = document.getElementById("btn-connect-admin");
+const connectDialog = document.getElementById("connect-dialog");
+const connectForm = document.getElementById("connect-form");
+const connectCode = document.getElementById("connect-code");
+const connectCancel = document.getElementById("connect-cancel");
+const connectError = document.getElementById("connect-error");
 
 let settings = loadSettings();
 
@@ -64,6 +73,10 @@ requestAnimationFrame(render);
 // --- Start / Pause / Resume toggle ---
 btnToggle.addEventListener("click", () => {
   const state = timer.getState();
+  if (peerSession.getRole() === "admin") {
+    sendCommand(state.status === "running" ? "pause" : "start");
+    return;
+  }
   if (state.status === "running") {
     timer.pause();
   } else {
@@ -77,15 +90,22 @@ let resetArmTimeout = null;
 
 btnReset.addEventListener("click", () => {
   const state = timer.getState();
+  const doReset = () => {
+    if (peerSession.getRole() === "admin") {
+      sendCommand("reset");
+    } else {
+      timer.reset();
+    }
+  };
   if (state.status !== "running") {
-    timer.reset();
+    doReset();
     return;
   }
   if (resetArmed) {
     clearTimeout(resetArmTimeout);
     resetArmed = false;
     btnReset.textContent = "Reset";
-    timer.reset();
+    doReset();
     return;
   }
   resetArmed = true;
@@ -134,7 +154,12 @@ durationApply.addEventListener("click", () => {
     Math.min(180, Number(durationMinutes.value) || 0),
   );
   const seconds = Math.max(0, Math.min(59, Number(durationSeconds.value) || 0));
-  timer.setDuration((minutes * 60 + seconds) * 1000);
+  const durationMs = (minutes * 60 + seconds) * 1000;
+  if (peerSession.getRole() === "admin") {
+    sendCommand("setDuration", { durationMs });
+  } else {
+    timer.setDuration(durationMs);
+  }
   closeEditor();
 });
 
@@ -159,7 +184,12 @@ quickAdjust.addEventListener("click", (e) => {
   const btn = e.target.closest(".adjust-btn");
   if (!btn) return;
   const deltaSeconds = Number(btn.dataset.delta);
-  timer.adjust(deltaSeconds * 1000);
+  const deltaMs = deltaSeconds * 1000;
+  if (peerSession.getRole() === "admin") {
+    sendCommand("adjust", { deltaMs });
+  } else {
+    timer.adjust(deltaMs);
+  }
   flashDisplay();
 });
 
@@ -229,6 +259,10 @@ settingsResetDefaults.addEventListener("click", () => {
   renderThresholdRows();
 });
 
+function bumpSettingsVersion() {
+  settings.settingsVersion = (settings.settingsVersion || 0) + 1;
+}
+
 settingsForm.addEventListener("submit", (e) => {
   e.preventDefault();
 
@@ -257,9 +291,10 @@ settingsForm.addEventListener("submit", (e) => {
     ...settings,
     thresholds: nextThresholds,
     baseColor: settingsBaseColor.value,
-    settingsVersion: (settings.settingsVersion || 0) + 1,
   };
+  bumpSettingsVersion();
   saveSettings(settings);
+  broadcastSettings();
   settingsDialog.close();
 });
 
@@ -273,10 +308,6 @@ window.addEventListener("keydown", (e) => {
     btnReset.click();
   }
 });
-
-// Temporary dev hook until peer sync lands in T7/T8.
-window.__timer = timer;
-window.__settings = () => settings;
 
 // --- Fullscreen ---
 btnFullscreen.addEventListener("click", () => {
@@ -331,3 +362,165 @@ window.addEventListener("beforeunload", (e) => {
     e.returnValue = "";
   }
 });
+
+// =====================================================================
+// P2P pairing (T7) + state/settings sync (T8, T8b)
+// =====================================================================
+
+let applyingRemote = false; // guards against re-broadcasting state we just received
+
+function handlePeerData(data) {
+  if (!data || typeof data !== "object") return;
+
+  switch (data.type) {
+    case "state": {
+      if (peerSession.getRole() !== "admin") return;
+      if (data.version <= lastAppliedStateVersion) return;
+      lastAppliedStateVersion = data.version;
+      applyingRemote = true;
+      timer.applyRemoteState(data);
+      applyingRemote = false;
+      break;
+    }
+    case "cmd": {
+      if (peerSession.getRole() !== "presenter") return;
+      applyCommand(data.action, data.payload);
+      break;
+    }
+    case "settings": {
+      if ((data.settingsVersion || 0) <= (settings.settingsVersion || 0))
+        return;
+      settings = {
+        ...settings,
+        ...data.settings,
+        settingsVersion: data.settingsVersion,
+      };
+      saveSettings(settings);
+      if (peerSession.getRole() === "presenter") {
+        peerSession.broadcast({
+          type: "settings",
+          settingsVersion: settings.settingsVersion,
+          settings,
+        });
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+function applyCommand(action, payload) {
+  switch (action) {
+    case "start":
+      timer.start();
+      break;
+    case "pause":
+      timer.pause();
+      break;
+    case "resume":
+      timer.resume();
+      break;
+    case "reset":
+      timer.reset();
+      break;
+    case "adjust":
+      timer.adjust(payload.deltaMs);
+      break;
+    case "setDuration":
+      timer.setDuration(payload.durationMs);
+      break;
+    default:
+      break;
+  }
+}
+
+let lastAppliedStateVersion = -1;
+
+function broadcastState() {
+  if (peerSession.getRole() !== "presenter") return;
+  const state = timer.getState();
+  peerSession.broadcast({
+    type: "state",
+    version: state.version,
+    status: state.status,
+    remainingMs: state.remainingMs,
+    durationMs: state.durationMs,
+    sentAt: Date.now(),
+  });
+}
+
+function broadcastSettings() {
+  peerSession.broadcast({
+    type: "settings",
+    settingsVersion: settings.settingsVersion,
+    settings,
+  });
+}
+
+function sendCommand(action, payload) {
+  peerSession.broadcast({ type: "cmd", action, payload, sentAt: Date.now() });
+}
+
+const peerSession = createPeerSession({
+  onStatusChange: (status, count) => {
+    pairingStatus.textContent =
+      status === "linked" ? `linked (${count})` : status;
+    pairingStatus.className = status;
+  },
+  onData: handlePeerData,
+  onPeerCount: () => {},
+  onPeerConnected: (conn) => {
+    if (peerSession.getRole() !== "presenter") return;
+    const state = timer.getState();
+    conn.send({
+      type: "state",
+      version: state.version,
+      status: state.status,
+      remainingMs: state.remainingMs,
+      durationMs: state.durationMs,
+      sentAt: Date.now(),
+    });
+    conn.send({
+      type: "settings",
+      settingsVersion: settings.settingsVersion,
+      settings,
+    });
+  },
+});
+
+const code = peerSession.startAsPresenter();
+pairingCode.textContent = code;
+pairingCode.hidden = false;
+
+timer.subscribe(() => {
+  if (applyingRemote) return;
+  broadcastState();
+});
+setInterval(broadcastState, 1000); // cheap resync heartbeat
+
+btnConnectAdmin.addEventListener("click", () => {
+  connectError.textContent = "";
+  connectCode.value = "";
+  connectDialog.showModal();
+});
+
+connectCancel.addEventListener("click", () => connectDialog.close());
+
+connectForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const raw = connectCode.value.trim().toLowerCase();
+  if (!raw) {
+    connectError.textContent = "Enter a code.";
+    return;
+  }
+  peerSession.connectAsAdmin(raw);
+  btnConnectAdmin.hidden = true;
+  pairingCode.hidden = true;
+  connectDialog.close();
+});
+
+// Temporary dev hooks for debugging in the console.
+window.__timer = timer;
+window.__settings = () => settings;
+window.__peer = peerSession;

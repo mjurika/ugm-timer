@@ -12,7 +12,7 @@ function nowMs() {
 
 export function createTimer(initialDurationMs = 0) {
   let state = {
-    status: 'idle',
+    status: "idle",
     durationMs: initialDurationMs,
     remainingMs: initialDurationMs,
     endsAt: null,
@@ -31,7 +31,7 @@ export function createTimer(initialDurationMs = 0) {
   }
 
   function computeRemaining() {
-    if (state.status === 'running') {
+    if (state.status === "running") {
       return Math.max(0, state.endsAt - nowMs());
     }
     return state.remainingMs;
@@ -39,24 +39,25 @@ export function createTimer(initialDurationMs = 0) {
 
   function setDuration(ms) {
     const durationMs = Math.max(0, ms);
-    if (state.status === 'running') return; // only settable while stopped/paused
-    bump({ status: 'idle', durationMs, remainingMs: durationMs, endsAt: null });
+    if (state.status === "running") return; // only settable while stopped/paused
+    bump({ status: "idle", durationMs, remainingMs: durationMs, endsAt: null });
   }
 
   function start() {
-    if (state.status === 'running') return;
-    const remainingMs = state.status === 'paused' ? state.remainingMs : state.durationMs;
+    if (state.status === "running") return;
+    const remainingMs =
+      state.status === "paused" ? state.remainingMs : state.durationMs;
     if (remainingMs <= 0) return;
     bump({
-      status: 'running',
+      status: "running",
       remainingMs,
       endsAt: nowMs() + remainingMs,
     });
   }
 
   function pause() {
-    if (state.status !== 'running') return;
-    bump({ status: 'paused', remainingMs: computeRemaining(), endsAt: null });
+    if (state.status !== "running") return;
+    bump({ status: "paused", remainingMs: computeRemaining(), endsAt: null });
   }
 
   function resume() {
@@ -65,21 +66,21 @@ export function createTimer(initialDurationMs = 0) {
 
   function reset() {
     bump({
-      status: 'idle',
+      status: "idle",
       remainingMs: state.durationMs,
       endsAt: null,
     });
   }
 
   function adjust(deltaMs) {
-    if (state.status === 'running') {
+    if (state.status === "running") {
       const remaining = Math.max(0, computeRemaining() + deltaMs);
       if (remaining <= 0) {
-        bump({ status: 'finished', remainingMs: 0, endsAt: null });
+        bump({ status: "finished", remainingMs: 0, endsAt: null });
       } else {
         bump({ remainingMs: remaining, endsAt: nowMs() + remaining });
       }
-    } else if (state.status === 'paused' || state.status === 'idle') {
+    } else if (state.status === "paused" || state.status === "idle") {
       const remaining = Math.max(0, state.remainingMs + deltaMs);
       bump({ remainingMs: remaining });
     }
@@ -87,8 +88,8 @@ export function createTimer(initialDurationMs = 0) {
 
   function getRemaining() {
     const remaining = computeRemaining();
-    if (state.status === 'running' && remaining <= 0) {
-      bump({ status: 'finished', remainingMs: 0, endsAt: null });
+    if (state.status === "running" && remaining <= 0) {
+      bump({ status: "finished", remainingMs: 0, endsAt: null });
       return 0;
     }
     return remaining;
@@ -96,6 +97,18 @@ export function createTimer(initialDurationMs = 0) {
 
   function getState() {
     return { ...state, remainingMs: computeRemaining() };
+  }
+
+  function applyRemoteState({ status, remainingMs, durationMs }) {
+    const patch = { status, remainingMs };
+    if (typeof durationMs === "number") patch.durationMs = durationMs;
+    if (status === "running") {
+      patch.endsAt = nowMs() + remainingMs;
+    } else {
+      patch.endsAt = null;
+    }
+    state = { ...state, ...patch, version: state.version + 1 };
+    emit();
   }
 
   function subscribe(cb) {
@@ -114,6 +127,7 @@ export function createTimer(initialDurationMs = 0) {
     getRemaining,
     getState,
     subscribe,
+    applyRemoteState,
   };
 }
 
@@ -123,8 +137,8 @@ export function formatDuration(ms) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
-  const mm = String(minutes).padStart(2, '0');
-  const ss = String(seconds).padStart(2, '0');
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
 
   if (hours > 0) {
     return `${hours}:${mm}:${ss}`;
@@ -133,4 +147,3 @@ export function formatDuration(ms) {
 }
 
 export { MINUTE };
-

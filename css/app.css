@@ -203,6 +203,47 @@ button:active {
     border-radius: 50%;
 }
 
+#pairing-bar {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+}
+
+#pairing-status {
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    opacity: 0.85;
+}
+
+#pairing-status.linked {
+    color: #6fd67a;
+}
+
+#pairing-status.connecting {
+    color: #f5c518;
+}
+
+#pairing-code {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+}
+
+#btn-connect-admin {
+    min-width: auto;
+    min-height: auto;
+    font-size: 0.85rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+}
+
 #settings-dialog {
     border: none;
     border-radius: 16px;
@@ -243,4 +284,38 @@ button:active {
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
+}
+
+#connect-dialog {
+    border: none;
+    border-radius: 16px;
+    padding: 1.5rem;
+    background: #1c2126;
+    color: var(--fg);
+    max-width: 90vw;
+    width: 360px;
+}
+
+#connect-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+#connect-code {
+    width: 100%;
+    font-size: 1.25rem;
+    text-align: center;
+    min-height: 56px;
+    text-transform: lowercase;
+}
+
+#connect-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+#connect-error {
+    color: #ff8080;
+    min-height: 1.2em;
 }
