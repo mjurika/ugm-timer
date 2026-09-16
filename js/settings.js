@@ -5,9 +5,9 @@ const STORAGE_KEY = "ugm-timer:settings:v1";
 
 export const DEFAULT_SETTINGS = {
   thresholds: [
-    { minutes: 15, color: "#f5c518", enabled: true },
-    { minutes: 5, color: "#f28c28", enabled: true },
-    { minutes: 2, color: "#d02b2b", enabled: true },
+    { minutes: 15, color: "#f5c518", enabled: false },
+    { minutes: 5, color: "#d02b2b", enabled: true },
+    { minutes: 1, color: "#ff0000", enabled: false },
   ],
   baseColor: "#101418",
   defaultDurationMs: 30 * 60 * 1000,

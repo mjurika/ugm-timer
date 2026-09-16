@@ -80,9 +80,12 @@ export function createTimer(initialDurationMs = 0) {
       } else {
         bump({ remainingMs: remaining, endsAt: nowMs() + remaining });
       }
-    } else if (state.status === "paused" || state.status === "idle") {
+    } else if (state.status === "paused") {
       const remaining = Math.max(0, state.remainingMs + deltaMs);
       bump({ remainingMs: remaining });
+    } else if (state.status === "idle") {
+      const remaining = Math.max(0, state.remainingMs + deltaMs);
+      bump({ remainingMs: remaining, durationMs: remaining });
     }
   }
 
