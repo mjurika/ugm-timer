@@ -15,11 +15,9 @@ Hosted on GitHub Pages from `main` / root.
 - Tablet/kiosk hardening: fullscreen toggle, screen wake lock, idle-hide
   controls, disabled text selection/callouts, unsaved-changes guard.
 - Optional peer-to-peer pairing (WebRTC via PeerJS): one device is the
-  **presenter** (the timer everyone watches), another can join as
-  **admin** using a short join code. Works completely standalone with no
-  admin connected.
-- Admin can send a short message that appears in a reserved band above
-  the timer (never covering it), adjust its font size, and dismiss it.
+  **presenter** (the timer everyone watches), another can join using a short join code. Works also completely standalone.
+- Anyone can send a short message that appears in a reserved band above
+  the timer (never covering it), adjust its font size, and dismiss it. Will be displayed for both devices.
 - Timer state and settings changes sync automatically between presenter
   and admin.
 - Installable as a PWA (works offline as a standalone timer; pairing
@@ -32,9 +30,7 @@ Hosted on GitHub Pages from `main` / root.
    persisted, so reloading the presenter keeps the same code.
 2. Set a duration (tap the timer, or use a preset), then Start.
 3. To pair a second device as **admin**: on that device tap
-   **Connect as admin**, enter the presenter's code, and connect.
-   Once linked, the admin gets a **Message** button and all timer/
-   settings controls sync both ways.
+   **Connect**, enter the presenter's code, and connect.
 4. Use the gear icon to configure background thresholds, base color,
    and (from the settings dialog) install the app.
 
