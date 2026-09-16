@@ -56,6 +56,11 @@ Pages serves files as-is.
 - Peer-to-peer pairing uses the public PeerJS Cloud signaling broker
   (loaded from a CDN); an internet connection is required for pairing,
   even though both devices may be in the same room.
+- A TURN relay (Metered Open Relay) is configured alongside STUN so
+  pairing still works when presenter and admin are on different
+  networks behind strict NATs/firewalls (not just the same wifi). The
+  TURN credential is long-lived and hardcoded in `js/peer.js`; rotate
+  it via Metered's create-credential API before it expires.
 - iPadOS Safari has stricter fullscreen and wake-lock support than
   Chrome on Android; the app degrades gracefully (timer still runs
   correctly, just without OS-level fullscreen/wake-lock guarantees).

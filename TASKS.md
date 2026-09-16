@@ -145,7 +145,7 @@ Load PeerJS from CDN, version pinned, with `integrity` attribute.
 
 - Everyone opens the app as **presenter** by default.
 - Presenter generates code `ugm-XXXXXX` (6 chars, ambiguous `0/O/I/1` excluded), registers it as the PeerJS ID, retries on `unavailable-id`. Code is persisted in `localStorage` so a presenter reload keeps the same code.
-- Admin flow: "Connect as admin" → enter code → `peer.connect(id)`.
+- Admin flow: "Connect" → enter code → `peer.connect(id)`.
 - Presenter accepts N admin connections and tracks the list.
 - Connection status pill: `offline / connecting / linked (n)`. Reconnect with backoff; handle `peer.on('disconnected')` → `reconnect()`.
 - Admin UI is the presenter UI plus the message compose button.

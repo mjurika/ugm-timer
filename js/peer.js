@@ -11,6 +11,42 @@ const CODE_STORAGE_KEY = "ugm-timer:presenter-code:v1";
 const CODE_ALPHABET = "23456789abcdefghjkmnpqrstuvwxyz"; // no 0/o/1/l/i
 const CODE_PREFIX = "ugm-";
 
+// TURN relay (Metered Open Relay, app `ugm-timer`). Required for reliable
+// cross-network pairing: public STUN alone fails behind symmetric NAT / strict
+// corporate firewalls, which is common when presenter and admin are on different
+// networks (not just different devices on the same wifi).
+//
+// This is a long-lived (1 year) TURN credential minted once via Metered's
+// POST /api/v1/turn/credential endpoint using the account secret key (which is
+// never shipped to the client — only the resulting username/password below
+// are). Regenerate before it expires by calling that endpoint again and
+// swapping the username/credential here. Free tier: 20 GB/mo relay traffic.
+const ICE_SERVERS = [
+  { urls: "stun:stun.relay.metered.ca:80" },
+  {
+    urls: "turn:global.relay.metered.ca:80",
+    username: "0662e2345d029bef894ee129",
+    credential: "Y+dHuDO4SNdxMZfD",
+  },
+  {
+    urls: "turn:global.relay.metered.ca:80?transport=tcp",
+    username: "0662e2345d029bef894ee129",
+    credential: "Y+dHuDO4SNdxMZfD",
+  },
+  {
+    urls: "turn:global.relay.metered.ca:443",
+    username: "0662e2345d029bef894ee129",
+    credential: "Y+dHuDO4SNdxMZfD",
+  },
+  {
+    urls: "turns:global.relay.metered.ca:443?transport=tcp",
+    username: "0662e2345d029bef894ee129",
+    credential: "Y+dHuDO4SNdxMZfD",
+  },
+];
+
+const PEER_OPTIONS = { config: { iceServers: ICE_SERVERS } };
+
 export function normalizeCode(code) {
   return String(code || "")
     .trim()
@@ -126,7 +162,7 @@ export function createPeerSession({
 
     function attempt(idSuffix = "") {
       const id = presenterCode + idSuffix;
-      peer = new Peer(id);
+      peer = new Peer(id, PEER_OPTIONS);
 
       peer.on("open", () => {
         reconnectAttempts = 0;
@@ -163,7 +199,7 @@ export function createPeerSession({
     role = "admin";
     targetCode = normalized;
     setStatus("connecting");
-    peer = new Peer();
+    peer = new Peer(PEER_OPTIONS);
 
     peer.on("open", () => {
       const conn = peer.connect(normalized, { reliable: true });
