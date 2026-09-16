@@ -48,6 +48,7 @@ const messageFontMinus = document.getElementById("message-font-minus");
 const messageFontPlus = document.getElementById("message-font-plus");
 const messageDismissBtn = document.getElementById("message-dismiss-btn");
 const messageCloseBtn = document.getElementById("message-close");
+const btnInstall = document.getElementById("btn-install");
 
 let settings = loadSettings();
 
@@ -633,4 +634,37 @@ messageForm.addEventListener("submit", (e) => {
 messageDismissBtn.addEventListener("click", () => {
   dismissMessage();
   messageDialog.close();
+});
+
+// =====================================================================
+// PWA: service worker + install prompt (T10)
+// =====================================================================
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((err) => {
+      console.warn("Service worker registration failed:", err);
+    });
+  });
+}
+
+let deferredInstallPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  btnInstall.hidden = false;
+});
+
+btnInstall.addEventListener("click", async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  btnInstall.hidden = true;
+});
+
+window.addEventListener("appinstalled", () => {
+  btnInstall.hidden = true;
+  deferredInstallPrompt = null;
 });
