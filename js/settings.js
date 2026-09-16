@@ -11,7 +11,7 @@ export const DEFAULT_SETTINGS = {
   ],
   baseColor: "#101418",
   defaultDurationMs: 30 * 60 * 1000,
-  messageFontSize: 5, // vh
+  messageFontSize: 7, // vh
   flashOnZero: true,
   keepAwake: true,
   settingsVersion: 0,

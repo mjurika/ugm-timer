@@ -294,12 +294,12 @@ body {
 }
 
 #message-band.pulse {
-    animation: message-pulse 1s ease;
+    animation: message-pulse 5s linear;
 }
 
 @keyframes message-pulse {
     0% {
-        background: #ffe680;
+        background: #fada5e;
     }
     100% {
         background: #ffffff;
