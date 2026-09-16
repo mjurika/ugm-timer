@@ -26,6 +26,8 @@ const settingsResetDefaults = document.getElementById(
   "settings-reset-defaults",
 );
 const settingsClose = document.getElementById("settings-close");
+const btnFullscreen = document.getElementById("btn-fullscreen");
+const controlsBar = document.getElementById("controls-bar");
 
 let settings = loadSettings();
 
@@ -275,3 +277,57 @@ window.addEventListener("keydown", (e) => {
 // Temporary dev hook until peer sync lands in T7/T8.
 window.__timer = timer;
 window.__settings = () => settings;
+
+// --- Fullscreen ---
+btnFullscreen.addEventListener("click", () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    document.documentElement.requestFullscreen().catch((err) => {
+      console.warn("Fullscreen request failed:", err);
+    });
+  }
+});
+
+// --- Wake lock (keep screen on) ---
+let wakeLock = null;
+
+async function requestWakeLock() {
+  if (!settings.keepAwake || !("wakeLock" in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+  } catch (err) {
+    console.warn("Wake lock request failed:", err);
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    requestWakeLock();
+  }
+});
+requestWakeLock();
+
+// --- Idle-hide controls ---
+let idleTimeout = null;
+
+function wakeControls() {
+  controlsBar.classList.remove("idle");
+  clearTimeout(idleTimeout);
+  idleTimeout = setTimeout(() => {
+    controlsBar.classList.add("idle");
+  }, 3000);
+}
+
+["pointerdown", "pointermove", "keydown"].forEach((evt) => {
+  window.addEventListener(evt, wakeControls, { passive: true });
+});
+wakeControls();
+
+// --- Guard against accidental navigation while running ---
+window.addEventListener("beforeunload", (e) => {
+  if (timer.getState().status === "running") {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+});
