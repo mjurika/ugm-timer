@@ -27,9 +27,17 @@
                 <button type="button" id="btn-connect-admin">
                     Connect as admin
                 </button>
+                <button type="button" id="btn-compose-message" hidden>
+                    Message
+                </button>
             </div>
 
-            <div id="message-band" aria-live="polite"></div>
+            <div id="message-band" aria-live="polite">
+                <div id="message-text"></div>
+                <button type="button" id="btn-dismiss-message" hidden>
+                    Dismiss
+                </button>
+            </div>
 
             <main id="timer-zone">
                 <div
@@ -187,6 +195,37 @@
                         </button>
                     </div>
                     <p id="connect-error" role="alert"></p>
+                </form>
+            </dialog>
+
+            <dialog id="message-dialog">
+                <form method="dialog" id="message-form">
+                    <h2>Send message</h2>
+                    <textarea
+                        id="message-input"
+                        rows="2"
+                        maxlength="120"
+                        placeholder="Up to ~10 words"
+                    ></textarea>
+                    <div id="message-font-controls">
+                        <span>Size</span>
+                        <button type="button" id="message-font-minus">
+                            A−
+                        </button>
+                        <button type="button" id="message-font-plus">A+</button>
+                    </div>
+
+                    <div id="message-preview-label">
+                        Live preview (shown in the band above):
+                    </div>
+
+                    <div id="message-actions">
+                        <button type="button" id="message-dismiss-btn">
+                            Dismiss
+                        </button>
+                        <button type="submit" id="message-send">Send</button>
+                        <button type="button" id="message-close">Close</button>
+                    </div>
                 </form>
             </dialog>
         </div>

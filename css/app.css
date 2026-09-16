@@ -50,14 +50,50 @@ body {
     max-height: var(--band-max-height);
     overflow: hidden;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 0 1rem;
+    padding: 0.25rem 1rem;
+    gap: 0.35rem;
 }
 
-#message-band:empty {
+#message-band:not(.has-message) {
     visibility: hidden;
+}
+
+#message-text {
+    font-weight: 700;
+    line-height: 1.15;
+    background: rgba(0, 0, 0, 0.55);
+    padding: 0.35em 0.9em;
+    border-radius: 12px;
+    max-width: 95vw;
+}
+
+#message-band.pulse #message-text {
+    animation: message-pulse 1s ease;
+}
+
+@keyframes message-pulse {
+    0% {
+        transform: scale(1);
+    }
+    30% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+#btn-dismiss-message {
+    min-width: auto;
+    min-height: auto;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.5);
 }
 
 /* Timer zone: centered, fills remaining space */
@@ -318,4 +354,58 @@ button:active {
 #connect-error {
     color: #ff8080;
     min-height: 1.2em;
+}
+
+#btn-compose-message {
+    min-width: auto;
+    min-height: auto;
+    font-size: 0.85rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+}
+
+#message-dialog {
+    border: none;
+    border-radius: 16px;
+    padding: 1.5rem;
+    background: #1c2126;
+    color: var(--fg);
+    max-width: 90vw;
+    width: 420px;
+}
+
+#message-dialog::backdrop {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+#message-input {
+    width: 100%;
+    font-size: 1.1rem;
+    padding: 0.5rem;
+    resize: vertical;
+}
+
+#message-font-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+#message-preview-label {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-top: 0.5rem;
+}
+
+#message-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+#message-dismiss-btn {
+    background: #7d2f2f;
+    margin-right: auto;
 }

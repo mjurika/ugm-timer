@@ -37,6 +37,17 @@ const connectForm = document.getElementById("connect-form");
 const connectCode = document.getElementById("connect-code");
 const connectCancel = document.getElementById("connect-cancel");
 const connectError = document.getElementById("connect-error");
+const messageBand = document.getElementById("message-band");
+const messageText = document.getElementById("message-text");
+const btnDismissMessage = document.getElementById("btn-dismiss-message");
+const btnComposeMessage = document.getElementById("btn-compose-message");
+const messageDialog = document.getElementById("message-dialog");
+const messageForm = document.getElementById("message-form");
+const messageInput = document.getElementById("message-input");
+const messageFontMinus = document.getElementById("message-font-minus");
+const messageFontPlus = document.getElementById("message-font-plus");
+const messageDismissBtn = document.getElementById("message-dismiss-btn");
+const messageCloseBtn = document.getElementById("message-close");
 
 let settings = loadSettings();
 
@@ -405,6 +416,20 @@ function handlePeerData(data) {
       }
       break;
     }
+    case "msg": {
+      showMessage(data.text, data.fontSize);
+      if (peerSession.getRole() === "presenter") {
+        peerSession.broadcast(data);
+      }
+      break;
+    }
+    case "msg-dismiss": {
+      clearMessage();
+      if (peerSession.getRole() === "presenter") {
+        peerSession.broadcast(data);
+      }
+      break;
+    }
     default:
       break;
   }
@@ -524,3 +549,88 @@ connectForm.addEventListener("submit", (e) => {
 window.__timer = timer;
 window.__settings = () => settings;
 window.__peer = peerSession;
+
+// =====================================================================
+// Message overlay (T9)
+// =====================================================================
+
+function showMessage(text, fontSize) {
+  messageText.textContent = text;
+  messageText.style.fontSize = `${fontSize || settings.messageFontSize}vh`;
+  messageBand.classList.add("has-message");
+  messageBand.classList.remove("pulse");
+  void messageBand.offsetWidth;
+  messageBand.classList.add("pulse");
+  btnDismissMessage.hidden = peerSession.getRole() !== "admin";
+}
+
+function clearMessage() {
+  messageText.textContent = "";
+  messageBand.classList.remove("has-message", "pulse");
+  btnDismissMessage.hidden = true;
+}
+
+function sendMessage(text, fontSize) {
+  const payload = { type: "msg", text, fontSize };
+  showMessage(text, fontSize);
+  if (peerSession.getRole() === "presenter") {
+    peerSession.broadcast(payload);
+  } else {
+    peerSession.broadcast(payload); // admin -> presenter, presenter re-broadcasts to others
+  }
+}
+
+function dismissMessage() {
+  const payload = { type: "msg-dismiss" };
+  clearMessage();
+  peerSession.broadcast(payload);
+}
+
+btnDismissMessage.addEventListener("click", dismissMessage);
+
+// Only admins get the compose button.
+function updateRoleUi() {
+  const isAdmin = peerSession.getRole() === "admin";
+  btnComposeMessage.hidden = !isAdmin;
+}
+
+const roleCheckInterval = setInterval(updateRoleUi, 500);
+updateRoleUi();
+
+btnComposeMessage.addEventListener("click", () => {
+  messageInput.value = "";
+  applyMessagePreviewFontSize();
+  messageDialog.showModal();
+});
+
+messageCloseBtn.addEventListener("click", () => messageDialog.close());
+
+function applyMessagePreviewFontSize() {
+  messageText.style.fontSize = `${settings.messageFontSize}vh`;
+}
+
+messageFontMinus.addEventListener("click", () => {
+  settings.messageFontSize = Math.max(2, settings.messageFontSize - 0.5);
+  applyMessagePreviewFontSize();
+});
+
+messageFontPlus.addEventListener("click", () => {
+  settings.messageFontSize = Math.min(10, settings.messageFontSize + 0.5);
+  applyMessagePreviewFontSize();
+});
+
+messageForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = messageInput.value.trim();
+  if (!text) return;
+  sendMessage(text, settings.messageFontSize);
+  bumpSettingsVersion();
+  saveSettings(settings);
+  broadcastSettings();
+  messageDialog.close();
+});
+
+messageDismissBtn.addEventListener("click", () => {
+  dismissMessage();
+  messageDialog.close();
+});
