@@ -8,39 +8,53 @@ import {
 } from "./settings.js";
 import { createTimer, formatDuration } from "./timer.js";
 
+// --- Topbar ---
+const pairingStatus = document.getElementById("pairing-status");
+const pairingCode = document.getElementById("pairing-code");
+const btnCopyCode = document.getElementById("btn-copy-code");
+const btnConnectAdmin = document.getElementById("btn-connect-admin");
+const btnComposeMessage = document.getElementById("btn-compose-message");
+const btnToggle = document.getElementById("btn-toggle");
+const btnToggleIcon = document.getElementById("btn-toggle-icon");
+const btnToggleLabel = document.getElementById("btn-toggle-label");
+const btnReset = document.getElementById("btn-reset");
+const sectionAdjust = document.getElementById("section-adjust");
+const btnFullscreen = document.getElementById("btn-fullscreen");
+const btnSettings = document.getElementById("btn-settings");
+
+// --- Message band + timer ---
+const messageBand = document.getElementById("message-band");
+const messageText = document.getElementById("message-text");
 const timerDisplay = document.getElementById("timer-display");
-const durationEditor = document.getElementById("duration-editor");
+
+// --- Duration dialog ---
+const durationDialog = document.getElementById("duration-dialog");
+const durationForm = document.getElementById("duration-form");
 const durationMinutes = document.getElementById("duration-minutes");
 const durationSeconds = document.getElementById("duration-seconds");
-const durationApply = document.getElementById("duration-apply");
 const durationCancel = document.getElementById("duration-cancel");
 const durationPresets = document.getElementById("duration-presets");
-const btnToggle = document.getElementById("btn-toggle");
-const btnReset = document.getElementById("btn-reset");
-const quickAdjust = document.getElementById("quick-adjust");
-const btnSettings = document.getElementById("btn-settings");
+
+// --- Settings dialog ---
 const settingsDialog = document.getElementById("settings-dialog");
 const settingsForm = document.getElementById("settings-form");
-const settingsBaseColor = document.getElementById("setting-base-color");
 const thresholdRows = document.getElementById("threshold-rows");
 const settingsResetDefaults = document.getElementById(
   "settings-reset-defaults",
 );
 const settingsClose = document.getElementById("settings-close");
-const btnFullscreen = document.getElementById("btn-fullscreen");
-const pairingStatus = document.getElementById("pairing-status");
-const pairingCode = document.getElementById("pairing-code");
-const btnCopyCode = document.getElementById("btn-copy-code");
-const btnConnectAdmin = document.getElementById("btn-connect-admin");
+const btnDisconnect = document.getElementById("btn-disconnect");
+const pairingSettingsInfo = document.getElementById("pairing-settings-info");
+const btnInstall = document.getElementById("btn-install");
+
+// --- Connect dialog ---
 const connectDialog = document.getElementById("connect-dialog");
 const connectForm = document.getElementById("connect-form");
 const connectCode = document.getElementById("connect-code");
 const connectCancel = document.getElementById("connect-cancel");
 const connectError = document.getElementById("connect-error");
-const messageBand = document.getElementById("message-band");
-const messageText = document.getElementById("message-text");
-const btnDismissMessage = document.getElementById("btn-dismiss-message");
-const btnComposeMessage = document.getElementById("btn-compose-message");
+
+// --- Message dialog ---
 const messageDialog = document.getElementById("message-dialog");
 const messageForm = document.getElementById("message-form");
 const messageInput = document.getElementById("message-input");
@@ -49,13 +63,14 @@ const messageFontPlus = document.getElementById("message-font-plus");
 const messageFontValue = document.getElementById("message-font-value");
 const messageDismissBtn = document.getElementById("message-dismiss-btn");
 const messageCloseBtn = document.getElementById("message-close");
-const btnInstall = document.getElementById("btn-install");
-const btnDisconnect = document.getElementById("btn-disconnect");
-const pairingSettingsInfo = document.getElementById("pairing-settings-info");
 
 let settings = loadSettings();
 
 const timer = createTimer(settings.defaultDurationMs);
+
+// =====================================================================
+// Render loop
+// =====================================================================
 
 function applyBackground(remainingMs) {
   const { bg, fg } = pickColor(settings, remainingMs);
@@ -70,7 +85,8 @@ function render() {
   applyBackground(remaining);
 
   const isRunning = state.status === "running";
-  btnToggle.textContent = isRunning
+  btnToggleIcon.textContent = isRunning ? "⏸" : "▶";
+  btnToggleLabel.textContent = isRunning
     ? "Pause"
     : state.status === "paused"
       ? "Resume"
@@ -81,10 +97,17 @@ function render() {
 }
 requestAnimationFrame(render);
 
-// --- Start / Pause / Resume toggle ---
+// =====================================================================
+// Timer controls (routed through the presenter when acting as admin)
+// =====================================================================
+
+function isAdmin() {
+  return peerSession.getRole() === "admin";
+}
+
 btnToggle.addEventListener("click", () => {
   const state = timer.getState();
-  if (peerSession.getRole() === "admin") {
+  if (isAdmin()) {
     sendCommand(state.status === "running" ? "pause" : "start");
     return;
   }
@@ -95,14 +118,13 @@ btnToggle.addEventListener("click", () => {
   }
 });
 
-// --- Reset (double-tap confirm while running) ---
 let resetArmed = false;
 let resetArmTimeout = null;
 
 btnReset.addEventListener("click", () => {
   const state = timer.getState();
   const doReset = () => {
-    if (peerSession.getRole() === "admin") {
+    if (isAdmin()) {
       sendCommand("reset");
     } else {
       timer.reset();
@@ -112,22 +134,44 @@ btnReset.addEventListener("click", () => {
     doReset();
     return;
   }
+  // Double-tap confirm while running, so a stray tap can't wipe a live timer.
   if (resetArmed) {
     clearTimeout(resetArmTimeout);
     resetArmed = false;
-    btnReset.textContent = "Reset";
+    btnReset.lastElementChild.textContent = "Reset";
     doReset();
     return;
   }
   resetArmed = true;
-  btnReset.textContent = "Tap again";
+  btnReset.lastElementChild.textContent = "Sure?";
   resetArmTimeout = setTimeout(() => {
     resetArmed = false;
-    btnReset.textContent = "Reset";
+    btnReset.lastElementChild.textContent = "Reset";
   }, 2000);
 });
 
-// --- Duration editor ---
+function flashDisplay() {
+  timerDisplay.classList.remove("flash");
+  void timerDisplay.offsetWidth; // force reflow so it retriggers on rapid taps
+  timerDisplay.classList.add("flash");
+}
+
+sectionAdjust.addEventListener("click", (e) => {
+  const btn = e.target.closest(".adjust-btn");
+  if (!btn) return;
+  const deltaMs = Number(btn.dataset.delta) * 1000;
+  if (isAdmin()) {
+    sendCommand("adjust", { deltaMs });
+  } else {
+    timer.adjust(deltaMs);
+  }
+  flashDisplay();
+});
+
+// =====================================================================
+// Duration dialog (tap the timer while it isn't running)
+// =====================================================================
+
 function msToFields(ms) {
   const totalSeconds = Math.round(ms / 1000);
   return {
@@ -136,78 +180,55 @@ function msToFields(ms) {
   };
 }
 
-function openEditor() {
+function openDurationDialog() {
   const state = timer.getState();
-  if (state.status === "running") return; // avoid editing while running
+  if (state.status === "running") return; // don't edit a live countdown
   const { minutes, seconds } = msToFields(state.durationMs);
   durationMinutes.value = String(minutes);
   durationSeconds.value = String(seconds);
-  durationEditor.hidden = false;
-  timerDisplay.setAttribute("aria-expanded", "true");
+  durationDialog.showModal();
 }
 
-function closeEditor() {
-  durationEditor.hidden = true;
-  timerDisplay.setAttribute("aria-expanded", "false");
-}
-
-timerDisplay.addEventListener("click", openEditor);
+timerDisplay.addEventListener("click", openDurationDialog);
 timerDisplay.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") {
     e.preventDefault();
-    openEditor();
+    openDurationDialog();
   }
 });
 
-durationApply.addEventListener("click", () => {
+durationCancel.addEventListener("click", () => durationDialog.close());
+
+durationPresets.addEventListener("click", (e) => {
+  const btn = e.target.closest(".preset-btn");
+  if (!btn) return;
+  durationMinutes.value = btn.dataset.minutes;
+  durationSeconds.value = "0";
+});
+
+durationForm.addEventListener("submit", (e) => {
+  e.preventDefault();
   const minutes = Math.max(
     0,
     Math.min(180, Number(durationMinutes.value) || 0),
   );
   const seconds = Math.max(0, Math.min(59, Number(durationSeconds.value) || 0));
   const durationMs = (minutes * 60 + seconds) * 1000;
-  if (peerSession.getRole() === "admin") {
+  if (isAdmin()) {
     sendCommand("setDuration", { durationMs });
   } else {
     timer.setDuration(durationMs);
   }
-  closeEditor();
+  durationDialog.close();
 });
 
-durationCancel.addEventListener("click", closeEditor);
+// =====================================================================
+// Settings dialog
+// =====================================================================
 
-durationPresets.addEventListener("click", (e) => {
-  const btn = e.target.closest(".preset-btn");
-  if (!btn) return;
-  const minutes = Number(btn.dataset.minutes);
-  durationMinutes.value = String(minutes);
-  durationSeconds.value = "0";
-});
-
-// --- Quick adjust (±30s / ±1m) ---
-function flashDisplay() {
-  timerDisplay.classList.remove("flash");
-  void timerDisplay.offsetWidth; // force reflow so animation retriggers on rapid taps
-  timerDisplay.classList.add("flash");
-}
-
-quickAdjust.addEventListener("click", (e) => {
-  const btn = e.target.closest(".adjust-btn");
-  if (!btn) return;
-  const deltaSeconds = Number(btn.dataset.delta);
-  const deltaMs = deltaSeconds * 1000;
-  if (peerSession.getRole() === "admin") {
-    sendCommand("adjust", { deltaMs });
-  } else {
-    timer.adjust(deltaMs);
-  }
-  flashDisplay();
-});
-
-// --- Settings dialog ---
 function renderThresholdRows() {
   thresholdRows
-    .querySelectorAll(".threshold-row, .threshold-error, #th-add")
+    .querySelectorAll(".threshold-row, #th-add")
     .forEach((el) => el.remove());
 
   settings.thresholds.forEach((t, index) => {
@@ -246,27 +267,24 @@ function renderThresholdRows() {
   }
 }
 
-function openSettings() {
-  settingsBaseColor.value = settings.baseColor;
+btnSettings.addEventListener("click", () => {
   renderThresholdRows();
+  updateRoleUi();
   settingsDialog.showModal();
-}
+});
 
-btnSettings.addEventListener("click", openSettings);
 settingsClose.addEventListener("click", () => settingsDialog.close());
 
 thresholdRows.addEventListener("click", (e) => {
   const removeBtn = e.target.closest(".th-remove");
   if (!removeBtn) return;
-  const row = removeBtn.closest(".threshold-row");
-  const index = Number(row.dataset.index);
+  const index = Number(removeBtn.closest(".threshold-row").dataset.index);
   settings.thresholds.splice(index, 1);
   renderThresholdRows();
 });
 
 settingsResetDefaults.addEventListener("click", () => {
   settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
-  settingsBaseColor.value = settings.baseColor;
   renderThresholdRows();
 });
 
@@ -277,11 +295,10 @@ function bumpSettingsVersion() {
 settingsForm.addEventListener("submit", (e) => {
   e.preventDefault();
 
-  const rows = Array.from(thresholdRows.querySelectorAll(".threshold-row"));
   const nextThresholds = [];
   const errors = [];
 
-  rows.forEach((row) => {
+  thresholdRows.querySelectorAll(".threshold-row").forEach((row) => {
     const minutes = Number(row.querySelector(".th-minutes").value);
     const color = row.querySelector(".th-color").value;
     const enabled = row.querySelector(".th-enabled").checked;
@@ -298,18 +315,26 @@ settingsForm.addEventListener("submit", (e) => {
     return;
   }
 
-  settings = {
-    ...settings,
-    thresholds: nextThresholds,
-    baseColor: settingsBaseColor.value,
-  };
+  settings = { ...settings, thresholds: nextThresholds };
   bumpSettingsVersion();
   saveSettings(settings);
   broadcastSettings();
   settingsDialog.close();
 });
 
-// --- Keyboard shortcuts (desktop convenience) ---
+btnDisconnect.addEventListener("click", () => {
+  clearMessage();
+  // Tell the other side to reset too. Small delay so the "bye" is flushed
+  // before the connection is torn down.
+  peerSession.broadcast({ type: "bye" });
+  settingsDialog.close();
+  setTimeout(() => startPresenterMode(), 200);
+});
+
+// =====================================================================
+// Keyboard shortcuts, fullscreen, wake lock, navigation guard
+// =====================================================================
+
 function isTextEntryTarget(target) {
   if (!(target instanceof HTMLElement)) return false;
   return (
@@ -332,7 +357,6 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// --- Fullscreen ---
 btnFullscreen.addEventListener("click", () => {
   if (document.fullscreenElement) {
     document.exitFullscreen();
@@ -343,7 +367,6 @@ btnFullscreen.addEventListener("click", () => {
   }
 });
 
-// --- Wake lock (keep screen on) ---
 let wakeLock = null;
 
 async function requestWakeLock() {
@@ -356,13 +379,10 @@ async function requestWakeLock() {
 }
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
-    requestWakeLock();
-  }
+  if (document.visibilityState === "visible") requestWakeLock();
 });
 requestWakeLock();
 
-// --- Guard against accidental navigation while running ---
 window.addEventListener("beforeunload", (e) => {
   if (timer.getState().status === "running") {
     e.preventDefault();
@@ -371,17 +391,46 @@ window.addEventListener("beforeunload", (e) => {
 });
 
 // =====================================================================
-// P2P pairing (T7) + state/settings sync (T8, T8b)
+// Message band
+// =====================================================================
+
+function showMessage(text, fontSize) {
+  messageText.textContent = text;
+  messageText.style.fontSize = `${fontSize || settings.messageFontSize}vh`;
+  messageBand.classList.add("has-message");
+  messageBand.classList.remove("pulse");
+  void messageBand.offsetWidth;
+  messageBand.classList.add("pulse");
+}
+
+function clearMessage() {
+  messageText.textContent = "";
+  messageBand.classList.remove("has-message", "pulse");
+}
+
+function sendMessage(text, fontSize) {
+  showMessage(text, fontSize);
+  peerSession.broadcast({ type: "msg", text, fontSize });
+}
+
+function dismissMessage() {
+  clearMessage();
+  peerSession.broadcast({ type: "msg-dismiss" });
+}
+
+// =====================================================================
+// P2P: pairing, state sync, settings sync
 // =====================================================================
 
 let applyingRemote = false; // guards against re-broadcasting state we just received
+let lastAppliedStateVersion = -1;
 
 function handlePeerData(data) {
   if (!data || typeof data !== "object") return;
 
   switch (data.type) {
     case "state": {
-      if (peerSession.getRole() !== "admin") return;
+      if (!isAdmin()) return;
       if (data.version <= lastAppliedStateVersion) return;
       lastAppliedStateVersion = data.version;
       applyingRemote = true;
@@ -390,7 +439,7 @@ function handlePeerData(data) {
       break;
     }
     case "cmd": {
-      if (peerSession.getRole() !== "presenter") return;
+      if (isAdmin()) return; // only the presenter applies commands
       applyCommand(data.action, data.payload);
       break;
     }
@@ -403,27 +452,18 @@ function handlePeerData(data) {
         settingsVersion: data.settingsVersion,
       };
       saveSettings(settings);
-      if (peerSession.getRole() === "presenter") {
-        peerSession.broadcast({
-          type: "settings",
-          settingsVersion: settings.settingsVersion,
-          settings,
-        });
-      }
+      if (settingsDialog.open) renderThresholdRows();
+      if (!isAdmin()) peerSession.broadcast(data); // relay to other admins
       break;
     }
     case "msg": {
       showMessage(data.text, data.fontSize);
-      if (peerSession.getRole() === "presenter") {
-        peerSession.broadcast(data);
-      }
+      if (!isAdmin()) peerSession.broadcast(data);
       break;
     }
     case "msg-dismiss": {
       clearMessage();
-      if (peerSession.getRole() === "presenter") {
-        peerSession.broadcast(data);
-      }
+      if (!isAdmin()) peerSession.broadcast(data);
       break;
     }
     case "bye": {
@@ -462,27 +502,33 @@ function applyCommand(action, payload) {
   }
 }
 
-let lastAppliedStateVersion = -1;
-
-function broadcastState() {
-  if (peerSession.getRole() !== "presenter") return;
+function stateEnvelope() {
   const state = timer.getState();
-  peerSession.broadcast({
+  return {
     type: "state",
     version: state.version,
     status: state.status,
     remainingMs: state.remainingMs,
     durationMs: state.durationMs,
     sentAt: Date.now(),
-  });
+  };
 }
 
-function broadcastSettings() {
-  peerSession.broadcast({
+function settingsEnvelope() {
+  return {
     type: "settings",
     settingsVersion: settings.settingsVersion,
     settings,
-  });
+  };
+}
+
+function broadcastState() {
+  if (isAdmin()) return; // presenter is the source of truth
+  peerSession.broadcast(stateEnvelope());
+}
+
+function broadcastSettings() {
+  peerSession.broadcast(settingsEnvelope());
 }
 
 function sendCommand(action, payload) {
@@ -510,48 +556,55 @@ const peerSession = createPeerSession({
     }
   },
   onData: handlePeerData,
-  onPeerCount: () => {},
   onPeerConnected: (conn) => {
-    if (peerSession.getRole() !== "presenter") return;
-    const state = timer.getState();
-    conn.send({
-      type: "state",
-      version: state.version,
-      status: state.status,
-      remainingMs: state.remainingMs,
-      durationMs: state.durationMs,
-      sentAt: Date.now(),
-    });
-    conn.send({
-      type: "settings",
-      settingsVersion: settings.settingsVersion,
-      settings,
-    });
+    if (isAdmin()) return;
+    conn.send(stateEnvelope());
+    conn.send(settingsEnvelope());
   },
   onConnectedAsAdmin: (conn) => {
     connectError.textContent = "";
     if (connectDialog.open) connectDialog.close();
-    // Share our locally-persisted settings too, in case we edited them while
-    // offline; version check on both ends decides who wins.
-    conn.send({
-      type: "settings",
-      settingsVersion: settings.settingsVersion,
-      settings,
-    });
+    // Share our locally-persisted settings, in case we edited them while
+    // offline; the version check on both ends decides who wins.
+    conn.send(settingsEnvelope());
   },
 });
+
+// Topbar visibility rules:
+// - presenter, unlinked: show code + copy + "Connect as admin"
+// - presenter, linked:   hide code/connect (pairing already established)
+// - admin:               hide code/connect, show "Message"
+function updateRoleUi() {
+  const admin = peerSession.getRole() === "admin";
+  const linked = peerSession.getStatus() === "linked";
+  const showCode = !admin && !linked;
+
+  pairingCode.hidden = !showCode;
+  btnCopyCode.hidden = !showCode;
+  btnConnectAdmin.hidden = admin || linked;
+  btnComposeMessage.hidden = !admin;
+
+  if (pairingSettingsInfo) {
+    pairingSettingsInfo.textContent = admin
+      ? `Connected as admin to ${peerSession.getCode() || "presenter"}.`
+      : `You are the presenter. Your code is ${peerSession.getCode() || "…"}.`;
+  }
+}
 
 function startPresenterMode() {
   const code = peerSession.startAsPresenter();
   pairingCode.textContent = code;
-  pairingCode.hidden = false;
-  btnCopyCode.hidden = false;
-  btnConnectAdmin.hidden = false;
   updateRoleUi();
   return code;
 }
 
 startPresenterMode();
+
+timer.subscribe(() => {
+  if (applyingRemote) return;
+  broadcastState();
+});
+setInterval(broadcastState, 1000); // cheap resync heartbeat
 
 btnCopyCode.addEventListener("click", async () => {
   const text = pairingCode.textContent;
@@ -559,28 +612,22 @@ btnCopyCode.addEventListener("click", async () => {
     await navigator.clipboard.writeText(text);
   } catch (err) {
     console.warn("Clipboard write failed, falling back.", err);
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
+    const helper = document.createElement("textarea");
+    helper.value = text;
+    helper.style.position = "fixed";
+    helper.style.opacity = "0";
+    document.body.appendChild(helper);
+    helper.select();
     document.execCommand("copy");
-    textarea.remove();
+    helper.remove();
   }
   btnCopyCode.classList.add("copied");
-  btnCopyCode.textContent = "✅";
+  btnCopyCode.textContent = "✓";
   setTimeout(() => {
     btnCopyCode.classList.remove("copied");
-    btnCopyCode.textContent = "📋";
+    btnCopyCode.textContent = "⧉";
   }, 1500);
 });
-
-timer.subscribe(() => {
-  if (applyingRemote) return;
-  broadcastState();
-});
-setInterval(broadcastState, 1000); // cheap resync heartbeat
 
 btnConnectAdmin.addEventListener("click", () => {
   connectError.textContent = "";
@@ -590,8 +637,8 @@ btnConnectAdmin.addEventListener("click", () => {
 
 connectCancel.addEventListener("click", () => {
   connectDialog.close();
-  // If we already flipped into admin mode but never linked, go back to being
-  // a standalone presenter rather than retrying forever in the background.
+  // If we flipped into admin mode but never linked, go back to standalone
+  // presenter rather than retrying forever in the background.
   if (
     peerSession.getRole() === "admin" &&
     peerSession.getStatus() !== "linked"
@@ -609,77 +656,15 @@ connectForm.addEventListener("submit", (e) => {
   }
   connectError.textContent = "Connecting…";
   peerSession.connectAsAdmin(raw);
-  btnConnectAdmin.hidden = true;
-  pairingCode.hidden = true;
-  btnCopyCode.hidden = true;
   // Dialog stays open until the link succeeds (see onConnectedAsAdmin), so the
   // user can see errors and correct the code.
 });
 
-// Temporary dev hooks for debugging in the console.
-window.__timer = timer;
-window.__settings = () => settings;
-window.__peer = peerSession;
-
 // =====================================================================
-// Message overlay (T9)
+// Message composer (admin only)
 // =====================================================================
 
-function showMessage(text, fontSize) {
-  messageText.textContent = text;
-  messageText.style.fontSize = `${fontSize || settings.messageFontSize}vh`;
-  messageBand.classList.add("has-message");
-  messageBand.classList.remove("pulse");
-  void messageBand.offsetWidth;
-  messageBand.classList.add("pulse");
-  btnDismissMessage.hidden = peerSession.getRole() !== "admin";
-}
-
-function clearMessage() {
-  messageText.textContent = "";
-  messageBand.classList.remove("has-message", "pulse");
-  btnDismissMessage.hidden = true;
-}
-
-function sendMessage(text, fontSize) {
-  const payload = { type: "msg", text, fontSize };
-  showMessage(text, fontSize);
-  if (peerSession.getRole() === "presenter") {
-    peerSession.broadcast(payload);
-  } else {
-    peerSession.broadcast(payload); // admin -> presenter, presenter re-broadcasts to others
-  }
-}
-
-function dismissMessage() {
-  const payload = { type: "msg-dismiss" };
-  clearMessage();
-  peerSession.broadcast(payload);
-}
-
-btnDismissMessage.addEventListener("click", dismissMessage);
-
-// Role-dependent UI: only admins compose messages.
-function updateRoleUi() {
-  const isAdmin = peerSession.getRole() === "admin";
-  btnComposeMessage.hidden = !isAdmin;
-  if (pairingSettingsInfo) {
-    pairingSettingsInfo.textContent = isAdmin
-      ? `Connected as admin to ${peerSession.getCode() || "presenter"}.`
-      : `You are the presenter. Your code is ${peerSession.getCode() || "…"}.`;
-  }
-}
-
-updateRoleUi();
-
-btnDisconnect.addEventListener("click", () => {
-  clearMessage();
-  // Tell the other side to reset too, then go back to standalone presenter.
-  // Small delay so the "bye" is flushed before we tear the connection down.
-  peerSession.broadcast({ type: "bye" });
-  settingsDialog.close();
-  setTimeout(() => startPresenterMode(), 200);
-});
+const MESSAGE_MAX_CHARS = 120;
 
 btnComposeMessage.addEventListener("click", () => {
   messageInput.textContent = "";
@@ -689,37 +674,6 @@ btnComposeMessage.addEventListener("click", () => {
 });
 
 messageCloseBtn.addEventListener("click", () => messageDialog.close());
-
-const MESSAGE_MAX_CHARS = 120;
-
-// Keep the editable box plain text and bounded.
-messageInput.addEventListener("paste", (e) => {
-  e.preventDefault();
-  const text = (e.clipboardData || window.clipboardData).getData("text");
-  document.execCommand("insertText", false, text);
-});
-
-messageInput.addEventListener("input", () => {
-  const text = messageInput.textContent;
-  if (text.length > MESSAGE_MAX_CHARS) {
-    messageInput.textContent = text.slice(0, MESSAGE_MAX_CHARS);
-    // Put the caret back at the end after truncating.
-    const range = document.createRange();
-    range.selectNodeContents(messageInput);
-    range.collapse(false);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
-});
-
-messageInput.addEventListener("keydown", (e) => {
-  // Enter sends; Shift+Enter makes a line break.
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    messageForm.requestSubmit();
-  }
-});
 
 // The compose box renders at the exact size used on the presenter screen, so
 // the admin can see straight away whether the text is too long or too large.
@@ -736,6 +690,33 @@ messageFontMinus.addEventListener("click", () => {
 messageFontPlus.addEventListener("click", () => {
   settings.messageFontSize = Math.min(10, settings.messageFontSize + 0.5);
   applyComposeFontSize();
+});
+
+messageInput.addEventListener("paste", (e) => {
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData("text");
+  document.execCommand("insertText", false, text);
+});
+
+messageInput.addEventListener("input", () => {
+  const text = messageInput.textContent;
+  if (text.length > MESSAGE_MAX_CHARS) {
+    messageInput.textContent = text.slice(0, MESSAGE_MAX_CHARS);
+    const range = document.createRange();
+    range.selectNodeContents(messageInput);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+});
+
+messageInput.addEventListener("keydown", (e) => {
+  // Enter sends; Shift+Enter makes a line break.
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    messageForm.requestSubmit();
+  }
 });
 
 messageForm.addEventListener("submit", (e) => {
@@ -755,7 +736,7 @@ messageDismissBtn.addEventListener("click", () => {
 });
 
 // =====================================================================
-// PWA: service worker + install prompt (T10)
+// PWA: service worker + install prompt
 // =====================================================================
 
 if ("serviceWorker" in navigator) {
@@ -786,3 +767,8 @@ window.addEventListener("appinstalled", () => {
   btnInstall.hidden = true;
   deferredInstallPrompt = null;
 });
+
+// Dev hooks for debugging in the console.
+window.__timer = timer;
+window.__settings = () => settings;
+window.__peer = peerSession;
