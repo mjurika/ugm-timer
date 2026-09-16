@@ -144,6 +144,15 @@ body {
     outline-offset: 2px;
 }
 
+#topbar button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+#topbar button.danger {
+    background: var(--topbar-danger);
+}
+
 #topbar button.icon-btn {
     font-size: 1.5rem;
     padding: 0.5rem;
@@ -233,7 +242,6 @@ body {
     font-weight: 700;
     line-height: 1;
     color: var(--fg);
-    cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
 }

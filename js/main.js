@@ -14,10 +14,12 @@ const pairingCode = document.getElementById("pairing-code");
 const btnCopyCode = document.getElementById("btn-copy-code");
 const btnConnectAdmin = document.getElementById("btn-connect-admin");
 const btnComposeMessage = document.getElementById("btn-compose-message");
+const btnDismissMessage = document.getElementById("btn-dismiss-message");
 const btnToggle = document.getElementById("btn-toggle");
 const btnToggleIcon = document.getElementById("btn-toggle-icon");
 const btnToggleLabel = document.getElementById("btn-toggle-label");
 const btnReset = document.getElementById("btn-reset");
+const btnDuration = document.getElementById("btn-duration");
 const sectionAdjust = document.getElementById("section-adjust");
 const btnFullscreen = document.getElementById("btn-fullscreen");
 const btnSettings = document.getElementById("btn-settings");
@@ -92,6 +94,7 @@ function render() {
       ? "Resume"
       : "Start";
   btnToggle.classList.toggle("is-running", isRunning);
+  btnDuration.disabled = isRunning; // duration is only editable while stopped
 
   requestAnimationFrame(render);
 }
@@ -189,13 +192,7 @@ function openDurationDialog() {
   durationDialog.showModal();
 }
 
-timerDisplay.addEventListener("click", openDurationDialog);
-timerDisplay.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" || e.key === " ") {
-    e.preventDefault();
-    openDurationDialog();
-  }
-});
+btnDuration.addEventListener("click", openDurationDialog);
 
 durationCancel.addEventListener("click", () => durationDialog.close());
 
@@ -394,6 +391,10 @@ window.addEventListener("beforeunload", (e) => {
 // Message band
 // =====================================================================
 
+function updateMessageUi() {
+  btnDismissMessage.hidden = !messageBand.classList.contains("has-message");
+}
+
 function showMessage(text, fontSize) {
   messageText.textContent = text;
   messageText.style.fontSize = `${fontSize || settings.messageFontSize}vh`;
@@ -401,11 +402,13 @@ function showMessage(text, fontSize) {
   messageBand.classList.remove("pulse");
   void messageBand.offsetWidth;
   messageBand.classList.add("pulse");
+  updateMessageUi();
 }
 
 function clearMessage() {
   messageText.textContent = "";
   messageBand.classList.remove("has-message", "pulse");
+  updateMessageUi();
 }
 
 function sendMessage(text, fontSize) {
@@ -417,6 +420,8 @@ function dismissMessage() {
   clearMessage();
   peerSession.broadcast({ type: "msg-dismiss" });
 }
+
+btnDismissMessage.addEventListener("click", dismissMessage);
 
 // =====================================================================
 // P2P: pairing, state sync, settings sync
@@ -573,7 +578,9 @@ const peerSession = createPeerSession({
 // Topbar visibility rules:
 // - presenter, unlinked: show code + copy + "Connect as admin"
 // - presenter, linked:   hide code/connect (pairing already established)
-// - admin:               hide code/connect, show "Message"
+// - admin:               hide code/connect
+// Every other control is available to both roles: commands are routed to the
+// presenter when we're an admin, so it doesn't matter who does what.
 function updateRoleUi() {
   const admin = peerSession.getRole() === "admin";
   const linked = peerSession.getStatus() === "linked";
@@ -582,7 +589,6 @@ function updateRoleUi() {
   pairingCode.hidden = !showCode;
   btnCopyCode.hidden = !showCode;
   btnConnectAdmin.hidden = admin || linked;
-  btnComposeMessage.hidden = !admin;
 
   if (pairingSettingsInfo) {
     pairingSettingsInfo.textContent = admin

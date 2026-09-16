@@ -39,8 +39,16 @@
                     <button type="button" id="btn-connect-admin">
                         Connect as admin
                     </button>
-                    <button type="button" id="btn-compose-message" hidden>
-                        Message
+                    <button type="button" id="btn-compose-message">
+</button>                        Message
+                    </button>
+                    <button
+                        type="button"
+                        id="btn-dismiss-message"
+                        class="danger"
+                        hidden
+                    >
+                        Dismiss
                     </button>
                 </section>
 
@@ -58,6 +66,14 @@
                     <button type="button" id="btn-reset" aria-label="Reset">
                         <span aria-hidden="true">↺</span>
                         <span>Reset</span>
+                    </button>
+                    <button
+                        type="button"
+                        id="btn-duration"
+                        aria-label="Set duration"
+                    >
+                        <span aria-hidden="true">⏱</span>
+                        <span>Set time</span>
                     </button>
                 </section>
 
@@ -105,14 +121,7 @@
             </div>
 
             <main id="timer-zone">
-                <div
-                    id="timer-display"
-                    tabindex="0"
-                    role="button"
-                    aria-label="Set duration"
-                >
-                    00:00
-                </div>
+                <div id="timer-display">00:00</div>
             </main>
 
             <dialog id="duration-dialog">
