@@ -1,8 +1,8 @@
 :root {
     --bg: #101418;
     --fg: #f5f5f5;
-    --band-max-height: 18vh;
-    --controls-height: 14vh;
+    --band-max-height: 16vh;
+    --controls-height: 18vh;
 }
 
 * {
@@ -37,10 +37,7 @@ body {
 
 #app {
     display: grid;
-    grid-template-rows: minmax(0, var(--band-max-height)) 1fr minmax(
-            0,
-            var(--controls-height)
-        );
+    grid-template-rows: auto auto 1fr;
     width: 100%;
     height: 100%;
 }
@@ -147,18 +144,14 @@ body {
     width: 100%;
 }
 
-/* Controls bar: dims/hides after idle (behavior added in later task) */
+/* Controls bar: pinned to the top, always visible on touch devices */
 #controls-bar {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
-    transition: opacity 300ms ease;
-}
-
-#controls-bar.idle {
-    opacity: 0.15;
+    gap: 0.6rem;
+    padding: 0.5rem 1rem;
 }
 
 #primary-controls,
@@ -169,14 +162,14 @@ body {
 }
 
 button {
-    min-width: 64px;
-    min-height: 64px;
-    font-size: 1.25rem;
-    border-radius: 12px;
+    min-width: 84px;
+    min-height: 84px;
+    font-size: 1.4rem;
+    border-radius: 14px;
     border: none;
     background: #2a2f36;
     color: var(--fg);
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 1.25rem;
     cursor: pointer;
 }
 
@@ -186,7 +179,7 @@ button:active {
 
 #btn-toggle {
     background: #2f7d3c;
-    min-width: 120px;
+    min-width: 140px;
 }
 
 #btn-toggle.is-running {
@@ -270,6 +263,19 @@ button:active {
 #pairing-code {
     font-variant-numeric: tabular-nums;
     font-weight: 600;
+}
+
+#btn-copy-code {
+    min-width: auto;
+    min-height: auto;
+    font-size: 1rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 999px;
+    background: transparent;
+}
+
+#btn-copy-code.copied {
+    background: #2f7d3c;
 }
 
 #btn-connect-admin {

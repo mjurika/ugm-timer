@@ -28,6 +28,14 @@
             <div id="pairing-bar">
                 <span id="pairing-status">offline</span>
                 <span id="pairing-code" hidden></span>
+                <button
+                    type="button"
+                    id="btn-copy-code"
+                    aria-label="Copy code"
+                    hidden
+                >
+                    📋
+                </button>
                 <button type="button" id="btn-connect-admin">
                     Connect as admin
                 </button>
@@ -35,6 +43,28 @@
                     Message
                 </button>
             </div>
+
+            <header id="controls-bar">
+                <div id="primary-controls">
+                    <button type="button" id="btn-toggle">Start</button>
+                    <button type="button" id="btn-reset">Reset</button>
+                    <button type="button" id="btn-fullscreen">⛶</button>
+                </div>
+                <div id="quick-adjust" hidden>
+                    <button type="button" class="adjust-btn" data-delta="-60">
+                        −1:00
+                    </button>
+                    <button type="button" class="adjust-btn" data-delta="-30">
+                        −0:30
+                    </button>
+                    <button type="button" class="adjust-btn" data-delta="30">
+                        +0:30
+                    </button>
+                    <button type="button" class="adjust-btn" data-delta="60">
+                        +1:00
+                    </button>
+                </div>
+            </header>
 
             <div id="message-band" aria-live="polite">
                 <div id="message-text"></div>
@@ -124,28 +154,6 @@
                     </div>
                 </div>
             </main>
-
-            <footer id="controls-bar">
-                <div id="quick-adjust" hidden>
-                    <button type="button" class="adjust-btn" data-delta="-60">
-                        −1:00
-                    </button>
-                    <button type="button" class="adjust-btn" data-delta="-30">
-                        −0:30
-                    </button>
-                    <button type="button" class="adjust-btn" data-delta="30">
-                        +0:30
-                    </button>
-                    <button type="button" class="adjust-btn" data-delta="60">
-                        +1:00
-                    </button>
-                </div>
-                <div id="primary-controls">
-                    <button type="button" id="btn-toggle">Start</button>
-                    <button type="button" id="btn-reset">Reset</button>
-                    <button type="button" id="btn-fullscreen">⛶</button>
-                </div>
-            </footer>
 
             <dialog id="settings-dialog">
                 <form method="dialog" id="settings-form">

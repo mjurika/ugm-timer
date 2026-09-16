@@ -28,9 +28,9 @@ const settingsResetDefaults = document.getElementById(
 );
 const settingsClose = document.getElementById("settings-close");
 const btnFullscreen = document.getElementById("btn-fullscreen");
-const controlsBar = document.getElementById("controls-bar");
 const pairingStatus = document.getElementById("pairing-status");
 const pairingCode = document.getElementById("pairing-code");
+const btnCopyCode = document.getElementById("btn-copy-code");
 const btnConnectAdmin = document.getElementById("btn-connect-admin");
 const connectDialog = document.getElementById("connect-dialog");
 const connectForm = document.getElementById("connect-form");
@@ -351,22 +351,6 @@ document.addEventListener("visibilitychange", () => {
 });
 requestWakeLock();
 
-// --- Idle-hide controls ---
-let idleTimeout = null;
-
-function wakeControls() {
-  controlsBar.classList.remove("idle");
-  clearTimeout(idleTimeout);
-  idleTimeout = setTimeout(() => {
-    controlsBar.classList.add("idle");
-  }, 3000);
-}
-
-["pointerdown", "pointermove", "keydown"].forEach((evt) => {
-  window.addEventListener(evt, wakeControls, { passive: true });
-});
-wakeControls();
-
 // --- Guard against accidental navigation while running ---
 window.addEventListener("beforeunload", (e) => {
   if (timer.getState().status === "running") {
@@ -527,6 +511,30 @@ const peerSession = createPeerSession({
 const code = peerSession.startAsPresenter();
 pairingCode.textContent = code;
 pairingCode.hidden = false;
+btnCopyCode.hidden = false;
+
+btnCopyCode.addEventListener("click", async () => {
+  const text = pairingCode.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (err) {
+    console.warn("Clipboard write failed, falling back.", err);
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+  btnCopyCode.classList.add("copied");
+  btnCopyCode.textContent = "✅";
+  setTimeout(() => {
+    btnCopyCode.classList.remove("copied");
+    btnCopyCode.textContent = "📋";
+  }, 1500);
+});
 
 timer.subscribe(() => {
   if (applyingRemote) return;
@@ -552,6 +560,7 @@ connectForm.addEventListener("submit", (e) => {
   peerSession.connectAsAdmin(raw);
   btnConnectAdmin.hidden = true;
   pairingCode.hidden = true;
+  btnCopyCode.hidden = true;
   connectDialog.close();
 });
 
