@@ -1,8 +1,11 @@
 // Pure timer engine. No DOM access — subscribe to get updates.
 //
 // State shape:
-// { status: 'idle' | 'running' | 'paused' | 'finished',
+// { status: 'idle' | 'running' | 'paused',
 //   durationMs, remainingMs, endsAt, version }
+//
+// Once running hits zero it keeps counting into negative remainingMs
+// instead of stopping — callers decide how to display overtime.
 
 const MINUTE = 60 * 1000;
 
@@ -32,7 +35,7 @@ export function createTimer(initialDurationMs = 0) {
 
   function computeRemaining() {
     if (state.status === "running") {
-      return Math.max(0, state.endsAt - nowMs());
+      return state.endsAt - nowMs();
     }
     return state.remainingMs;
   }
@@ -74,12 +77,8 @@ export function createTimer(initialDurationMs = 0) {
 
   function adjust(deltaMs) {
     if (state.status === "running") {
-      const remaining = Math.max(0, computeRemaining() + deltaMs);
-      if (remaining <= 0) {
-        bump({ status: "finished", remainingMs: 0, endsAt: null });
-      } else {
-        bump({ remainingMs: remaining, endsAt: nowMs() + remaining });
-      }
+      const remaining = computeRemaining() + deltaMs;
+      bump({ remainingMs: remaining, endsAt: nowMs() + remaining });
     } else if (state.status === "paused") {
       const remaining = Math.max(0, state.remainingMs + deltaMs);
       bump({ remainingMs: remaining });
@@ -90,12 +89,7 @@ export function createTimer(initialDurationMs = 0) {
   }
 
   function getRemaining() {
-    const remaining = computeRemaining();
-    if (state.status === "running" && remaining <= 0) {
-      bump({ status: "finished", remainingMs: 0, endsAt: null });
-      return 0;
-    }
-    return remaining;
+    return computeRemaining();
   }
 
   function getState() {
@@ -135,7 +129,8 @@ export function createTimer(initialDurationMs = 0) {
 }
 
 export function formatDuration(ms) {
-  const totalSeconds = Math.ceil(ms / 1000);
+  const sign = ms < 0 ? "-" : "";
+  const totalSeconds = Math.ceil(Math.abs(ms) / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
@@ -144,9 +139,9 @@ export function formatDuration(ms) {
   const ss = String(seconds).padStart(2, "0");
 
   if (hours > 0) {
-    return `${hours}:${mm}:${ss}`;
+    return `${sign}${hours}:${mm}:${ss}`;
   }
-  return `${mm}:${ss}`;
+  return `${sign}${mm}:${ss}`;
 }
 
 export { MINUTE };
